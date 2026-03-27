@@ -1,0 +1,5 @@
+# Budget  G1_Mean G1_Std  G2_Mean G2_Std  PMARL_Mean PMARL_Std  AntQ_Mean AntQ_Std
+4000      250     30      260     25      300        35         280       30
+6000      350     40      360     35      410        40         390       35
+8000      442     45      442     45      498        50         470       45
+10000     520     55      530     50      610        60         580       50

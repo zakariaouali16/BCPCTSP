@@ -61,16 +61,11 @@ public class Exploration {
 
     public static void main(String[] args) throws IOException
     {
-        int[] trails_arr = {25000, 30000, 35000};
-        int[] agents_arr = {4, 5, 6};
-        double[] alpha_arr = {0.075, 0.1, 0.125};
-        double[] gamma_arr = {0.35, 0.4, 0.45};
-        double[] q0_arr = {0.7, 0.8, 0.9, 1.0};
-//        int[] trails_arr = {30000};
-//        int[] agents_arr = {4};
-//        double[] alpha_arr = {0.05, 0.1};
-//        double[] gamma_arr = {0.5};
-//        double[] q0_arr = {0.8, 1.0};
+        int[] trails_arr = {5000};
+        int[] agents_arr = {4}; // Assuming 4 agents, adjust if needed
+        double[] alpha_arr = {0.1};
+        double[] gamma_arr = {0.3};
+        double[] q0_arr = {0.5};
 
         double maxAvg = 0;
         int maxT = 0;

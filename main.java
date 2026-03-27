@@ -19,15 +19,15 @@ public class main {
     static int n = 48;
     private static double remainingBudget;
 
-    // static variables to be tweaked by user
-    static final int TRIALS = 4000;
-    static final int NUM_AGENTS = 5;
-    static final double W = 1000.0; // constant value to update the reward table
-    static double alpha = 0.125; // .125 learning rate
-    static double gamma = 0.35; // .35 discount factor
+   // static variables to be tweaked by user
+    static final int TRIALS = 5000; // number of episodes (epi)
+    static final int NUM_AGENTS = 5; // (leave as is or change if needed)
+    static final double W = 1500.0; // constant value to update the reward table
+    static double alpha = 0.1; // learning rate
+    static double gamma = 0.3; // discount factor
     static final double delta = 1; // power for Q value
     static final double beta = 2; // power for distance
-    static double q0 = 0.8; // coefficient for exploration and exploitation
+    static double q0 = 0.5; // coefficient for exploration and exploitation
 
     // flags for graph (do not touch)
     static final int UNVISITED = 0;
