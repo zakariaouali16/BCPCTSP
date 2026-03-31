@@ -1,31 +1,31 @@
-import java.awt.font.TransformAttribute;
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.*;
 
-//Justin Ruiz
+public class TableData {
 
-/*
- * TODO: find balance between user tweaked values to more consistently obtain ratio-optimal results
- */
-
-public class Exploration {
     //meta variable
     static String fileName = "Capital_Cities.txt";
+    static int TOTAL_DATA = 20;
+    static int[] BUDGETS_ARRAY = new int[] {10000, 20000, 30000, 40000};
+    static int[] AGENTS_ARRAY = new int[] {1,5,10,15,20};
 
     //CHANGE CITY AND PRIZEGOAL
-    static String begin = "albany,ny";
-    static String end = "jackson,ms";
-    static double budget = 10000;
+    static String begin = "";
+    static String end = "";
+    static double budget = 0; // budget in miles
+    private static double remainingBudget;
 
     //static variables to be tweaked by user
-    static int TRIALS = 30000;
-    static int NUM_AGENTS = 4;
-    static double W = 100.0;      //constant value to update the reward table
-    static double alpha = 0.05;   //learning rate
-    static double gamma = 0.5;    //discount factor
-    static double delta = 1;      //power for Q value
-    static double beta = 2;       //power for distance
-    static double q0 = 0.5;       //coefficient for exploration and exploitation
+    static final int TRIALS = 30000;
+    static int NUM_AGENTS = 6;
+    static final double W = 100.0;      // constant value to update the reward table
+    static final double alpha = 0.1;  // learning rate
+    static final double gamma = 0.4;    // discount factor
+    static final double delta = 1;      // power for Q value
+    static final double beta = 2;       // power for distance
+    static final double q0 = 0.8;       // coefficient for exploration and exploitation
 
     //flags for graph (do not touch)
     static final int UNVISITED = 0;
@@ -40,91 +40,91 @@ public class Exploration {
     static int statesCt;
     static int total_prize = 0;
     static double total_wt = 0;
+    static ArrayList<Integer> route;
 
-    public static double oneRun(int trails, int agents, double a, double g, double q) {
-        TRIALS = trails;
-        NUM_AGENTS = agents;
-        alpha = a;
-        gamma = g;
-        q0 = q;
-        //initialization functions
-        initList();
-        initGraph();
-        initStatics();
-        //Q-Learning logic
-        learnQ();
-        //final traversal using completed Q-Table
-        traverseQ();
-        System.out.printf("Total Prize: $%d\n", total_prize);
-        return total_prize;
-    }
+    // variables for extra credits
+    static long randomSeed = 12345;     // random seed for inaccessible edge, can change to any long
+    static double missingProb = 0.0;    // probability of an inaccessible edge
+
 
     public static void main(String[] args) throws IOException
     {
-        int[] trails_arr = {25000, 30000, 35000};
-        int[] agents_arr = {4, 5, 6};
-        double[] alpha_arr = {0.075, 0.1, 0.125};
-        double[] gamma_arr = {0.35, 0.4, 0.45};
-        double[] q0_arr = {0.7, 0.8, 0.9, 1.0};
-//        int[] trails_arr = {30000};
-//        int[] agents_arr = {4};
-//        double[] alpha_arr = {0.05, 0.1};
-//        double[] gamma_arr = {0.5};
-//        double[] q0_arr = {0.8, 1.0};
+        for (int b : BUDGETS_ARRAY) {
+            double[][] greedy1Data = new double[2][TOTAL_DATA];
+            double[][] greedy2Data = new double[2][TOTAL_DATA];
+            double[][] MARLData = new double[2][TOTAL_DATA];
+            for (int i = 0; i < TOTAL_DATA; i++) {
+                System.out.println("ROUND " + (i+1));
+                generateRandomCities(b, i);
 
-        double maxAvg = 0;
-        int maxT = 0;
-        int maxAG = 0;
-        double maxA = 0;
-        double maxG = 0;
-        double maxQ = 0;
+                // System.out.println("\n========== BC-PC-TSP MARL algorithm ==========");
+                initList();
+                initGraph();
+                initStatics();
+                learnQ();
+                traverseQ();
+                MARLData[0][i] = total_prize;
+                MARLData[1][i] = total_wt;
+//                System.out.println("MARL " + total_prize);
 
-        for (int t : trails_arr) {
-            for (int ag : agents_arr) {
-                for (double a : alpha_arr) {
-                    for (double g : gamma_arr) {
-                        for (double q : q0_arr) {
-                            System.out.printf("Trail %d, Agent %d, Alpha %f, Gamma %f, Q0 %f\n", t, ag, a, g, q);
-                            double total = 0;
-                            for (int i = 0; i < 10; i++) {
-                                total += oneRun(t, ag, a, g, q);
-                            }
-                            System.out.printf("Average prize: %f\n", total / 10);
-                            if (total / 10 > maxAvg) {
-                                maxAvg = total/10;
-                                maxT = t; maxAG = ag; maxA = a; maxG = g; maxQ = q;
-                            }
-                        }
-                    }
-                }
+                // System.out.println("========== First greedy algorithm ==========");
+                traverseP();
+                greedy1Data[0][i] = total_prize;
+                greedy1Data[1][i] = total_wt;
+//                System.out.println("Greedy 1 " + total_prize);
+
+                // System.out.println("\n========== Second greedy algorithm ==========");
+                traverseR();
+                greedy2Data[0][i] = total_prize;
+                greedy2Data[1][i] = total_wt;
+//                System.out.println("Greedy 2 " + total_prize);
             }
+            System.out.printf("\n============= For budget %d =============\n", b);
+            System.out.println("Greedy Algorithm 1");
+            System.out.println("Prizes: " + Arrays.toString(greedy1Data[0]));
+            System.out.println("Distances: " + Arrays.toString(greedy1Data[1]));
+            System.out.println("Greedy Algorithm 2");
+            System.out.println("Prizes: " + Arrays.toString(greedy2Data[0]));
+            System.out.println("Distances: " + Arrays.toString(greedy2Data[1]));
+            System.out.println("MARL Algorithm");
+            System.out.println("Prizes: " + Arrays.toString(MARLData[0]));
+            System.out.println("Distances: " + Arrays.toString(MARLData[1]));
         }
 
-        System.out.printf(
-            "Max average prize: %f with parameter Trail %d, Agent %d, Alpha %f, Gamma %f, Q0 %f",
-            maxAvg, maxT, maxAG, maxA, maxG, maxQ
-        );
+        for (int b : BUDGETS_ARRAY) {
+            for (int agent : AGENTS_ARRAY) {
+                double[][] MARLData = new double[3][TOTAL_DATA];
+                for (int i = 0; i < TOTAL_DATA; i++) {
+                    System.out.println("ROUND " + (i + 1));
+                    generateRandomCities(b, i);
+                    NUM_AGENTS = agent;
+                    initList();
+                    initGraph();
+                    initStatics();
+                    long startTime = System.nanoTime();
+                    learnQ();
+                    traverseQ();
+                    long endTime = System.nanoTime();
+                    MARLData[0][i] = total_prize;
+                    MARLData[1][i] = total_wt;
+                    MARLData[2][i] = ((float) endTime - startTime) / 1000000;
+                }
+                System.out.printf("\n============= For budget %d, agent %d =============\n", b, agent);
+                System.out.println("MARL Algorithm");
+                System.out.println("Prizes: " + Arrays.toString(MARLData[0]));
+                System.out.println("Distances: " + Arrays.toString(MARLData[1]));
+                System.out.println("Time: " + Arrays.toString(MARLData[1]));
+            }
+        }
     }
 
-    static void print2dArray()
-    {
-        double[][] arr = sGraph.matrix;
-
-        System.out.printf("\t   ");
-        for (int i = 0; i < arr[0].length-1; i++)
-        {
-            System.out.printf("%18s", sGraph.nodeName[i]);
-        }
-        System.out.println();
-        for (int k = 0; k < arr[0].length-1; k++)
-        {
-            System.out.printf("%-20s", sGraph.nodeName[k]);
-            for (int j = 0; j < arr[0].length-1; j++)
-            {
-                System.out.printf("%-18.2f", arr[k][j]);
-            }
-            System.out.println("");
-        }
+    static void generateRandomCities(int b, int idx) {
+        String[] allCities = new String[] {
+            "Albany,NY", "Annapolis,MD","Atlanta,GA","Augusta,ME","Austin,TX","BatonRouge,LA","Bismarck,ND","Boise,ID","Boston,MA","CarsonCity,NV","Charleston,WV","Cheyenne,WY","Columbia,SC","Columbus,OH","Concord,NH","Denver,CO","DesMoines,IA","Dover,DE","Frankfort,KY","Harrisburg,PA","Hartford,CT","Helena,MT","Indianapolis,IN","Jackson,MS","JeffersonCity,MO","Lansing,MI","Lincoln,NE","LittleRock,AR","Madison,WI","Montgomery,AL","Montpelier,VT","Nashville,TN","OklahomaCity,OK","Olympia,WA","Phoenix,AZ","Pierre,SD","Providence,RI","Raleigh,NC","Richmond,VA","Sacramento,CA","SaintPaul,MN","Salem,OR","SaltLakeCity,UT","SantaFe,NM","Springfield,IL","Tallahassee,FL","Topeka,KS","Trenton,NJ"
+        };
+        begin = allCities[idx];
+        end = allCities[idx];
+        budget = b;
     }
 
     /*
@@ -162,18 +162,7 @@ public class Exploration {
         {System.out.println("FILE NOT FOUND."); System.exit(0);}
 
         //(3)
-        //Scanner userIn = new Scanner(System.in);
         String startCity, endCity;
-
-        //optional scanner for user input
-		/*
-		System.out.println("Please enter the name of the starting city:");
-		startCity = userIn.nextLine().toLowerCase();
-		
-		System.out.println("Please enter the name of the ending city:");
-		endCity = userIn.nextLine().toLowerCase();
-		*/
-
         startCity = begin.toLowerCase();
         endCity = end.toLowerCase();
 
@@ -221,6 +210,8 @@ public class Exploration {
      */
     static void initGraph()
     {
+        // we can have different keys for difference cases
+        Random rand = new Random(randomSeed);
         sGraph = new Graph();
         int size = arrCities.size();
         sGraph.Init(size);
@@ -230,10 +221,23 @@ public class Exploration {
             sGraph.setMark(i, UNVISITED);
             sGraph.setName(i, arrCities.get(i).name);
             sGraph.setPrize(i, arrCities.get(i).pop);
-            for(int j = 0 ; j < size; j++)
-                sGraph.setEdge(i, j, CityNode.getDistance(arrCities.get(i), arrCities.get(j)));
+            for(int j = 0; j < i + 1; j++) {
+                if (i == j) {
+                    sGraph.setEdge(i, j, 0);
+                } else {
+                    // randomly mark some path as inaccessible
+                    if (rand.nextDouble() > missingProb) {
+                        sGraph.setEdge(i, j, CityNode.getDistance(arrCities.get(i), arrCities.get(j)));
+                        sGraph.setEdge(j, i, CityNode.getDistance(arrCities.get(j), arrCities.get(i)));
+                    } else {
+                        sGraph.setEdge(i, j, Double.MAX_VALUE);
+                        sGraph.setEdge(j, i, Double.MAX_VALUE);
+                    }
+                }
+            }
         }
         sGraph.setMark(sGraph.getLastNode(), LAST_VISIT);
+        sGraph.constructShortestPath();
     }
 
     /*
@@ -255,36 +259,27 @@ public class Exploration {
             }
     }
 
-    static int algoSelect()
-    {
-        Scanner userIn = new Scanner(System.in);
-        System.out.println("Select algorithm:");
-        System.out.println("1) Greedy-R");
-        System.out.println("2) Greedy-P");
-        System.out.println("3) MARL");
-
-        return userIn.nextInt();
-    }
-
     /*
      * Documentation for learnQ()
      * learnQ() is the primary function for the program
      *
-     * (1) Random() is called to provide a random number within bounds of the possibleActionsFromState array.
+     * (1) All the m agents are initially located at the starting node s with zero collected prizes.
+     *     [line 236-242]
      *
-     * (2) Will run as many trials as indicated from the static variables at the top of the program.
+     * (2) Then each independently follows the action rule to move to the next node to collect prizes and
+     *     collaboratively updates the Q-value.
+     *     [line 252-262]
      *
-     * (3) Initialize the appropriate number of agents and place them into an array of agents (aList)
+     * (3) When an agent can no longer find a feasible unvisited node to move to due to its insufficient budget,
+     *     it terminates and goes to t.
+     *     [line 246]
      *
-     * (4) Checks the allQuotaMet function to decide if all agents have reached their prize goal
-     * if not, all agents will step through to a node based on the Q-Learning function until they do
+     * (4) Otherwise, it moves to the next node and collects the prize and continues the prize-collecting process.
+     *     [line 248-265]
      *
-     * (5) Once all agents meet their goal, they will go to the last node in the graph
-     * once there, they will add those weight and prize values to the agent,
-     * calculate the prize/distance ratio for each agent, and set pertinent flags.
-     *
-     * (6) mostFitIndex() will find the agent with the highest ratio and set them to jStar.
-     * Reward and Q- table will then be updated
+     * (5) Then, it finds among the m routes the one with the maximum collected prizes and updates the
+     *     reward value and Q-value of the edges that belong to this route.
+     *     [line 269-281]
      */
     static void learnQ()
     {
@@ -308,15 +303,14 @@ public class Exploration {
                         int nextState = getNextStateFromCurState(aj, aj.curState, 1 - q0 * (TRIALS - i)/ TRIALS);
                         if (nextState == aj.getLastNode()) {
                             aj.isDone = true;
-                        } else {
-                            double maxQ = maxQ(aj, nextState);
-                            Q[aj.curState][nextState] = (1-alpha) * Q[aj.curState][nextState] + alpha * gamma * maxQ;
-                            aj.indexPath.add(nextState);
-                            aj.total_wt += aj.weight(aj.curState, nextState);
-                            aj.total_prize += aj.getPrize(nextState);
-                            aj.setAgentMark(nextState, VISITED);
-                            aj.curState = nextState;
                         }
+                        double maxQ = maxQ(aj, nextState);
+                        Q[aj.curState][nextState] = (1-alpha) * Q[aj.curState][nextState] + alpha * gamma * maxQ;
+                        aj.indexPath.add(nextState);
+                        aj.total_wt += aj.shortestPath(aj.curState, nextState);
+                        aj.total_prize += aj.getTotalPrize(nextState);
+                        aj.setAgentMark(nextState, VISITED);
+                        aj.curState = nextState;
                     }
                 }
             }
@@ -339,7 +333,7 @@ public class Exploration {
 
     /*
      * Documentation for allQuotaMet()
-     * This function checks if every agent has reached their prelim goal (prizeGoal - prize of last node)
+     * This function checks if every agent has no extra budget to travel other than goes to the destination
      * if every agent in aList does, return true, and break out of while loop. else, return false, while loop continues
      */
     static boolean allQuotaMet(Agent[] aList)
@@ -356,8 +350,8 @@ public class Exploration {
     }
 
     /*
-     * Documentation for findBestRatio
-     * This function find the agent in the list with the best prizeGoal/distance ratio
+     * Documentation for findHighestPrize
+     * This function find the agent in the list with the highest prize collected
      * it then returns its index, and becomes agent jStar
      */
     static int findHighestPrize(Agent[] aList)
@@ -383,21 +377,24 @@ public class Exploration {
     {
         total_wt = 0;
         total_prize = 0;
+        remainingBudget = 0.0;
+        route = new ArrayList<>();
         for (int i = 0; i < statesCt; i++)
             sGraph.setMark(i, UNVISITED);
         sGraph.setMark(sGraph.getLastNode(), LAST_VISIT);
     }
 
     /*
-     * Documentation for possibleActionsFromState()
-     * This function returns an arraylist of all nodes an agent can currently visit from the current node
-     * This does not include its own node, or previously visited nodes
+     * Documentation for getNextStateFromCurState()
+     * This function returns the next state for a specific agent according to action rule in BC-PC-TSP
+     * The q0 passed to this function will change according to different trails, from small to large
+     * At the very end, we won't do exploration at all
      */
     static int getNextStateFromCurState(Agent aj, int s, double q0)
     {
         ArrayList<Integer> feasible = new ArrayList<>();
         for (int i = 1; i < aj.getLastNode(); i++) {
-            if (aj.getMark(i) == UNVISITED && aj.weight(s, i) + aj.weight(i, aj.getLastNode()) < aj.budget - aj.total_wt) {
+            if (aj.getMark(i) == UNVISITED && aj.shortestPath(s, i) + aj.shortestPath(i, aj.getLastNode()) < aj.budget - aj.total_wt) {
                 feasible.add(i);
             }
         }
@@ -446,18 +443,18 @@ public class Exploration {
 
     /*
      * Documentation for maxQ
-     * This function should limit the growth of Q-Values, unsure if working properly but no issues thus far
+     * This function will find the max Q value among all the unvisited states within the feasible set
      */
     static double maxQ(Agent aj, int nextState)
     {
         ArrayList<Integer> result = new ArrayList<>();
         for (int i = 0; i < statesCt; i++)
-            if (aj.weight(nextState, i) != 0 && aj.getMark(i) == UNVISITED)
+            if (aj.shortestPath(nextState, i) != 0 && aj.getMark(i) == UNVISITED)
                 result.add(i);
         int[] possibleActions = result.stream().mapToInt(i -> i).toArray();
 
         //the learning rate and eagerness will keep the W value above the lowest reward
-        double maxValue = Double.NEGATIVE_INFINITY;
+        double maxValue = 0;
         for (int nextAction : possibleActions)
         {
             double value = Q[nextState][nextAction];
@@ -469,18 +466,22 @@ public class Exploration {
     }
 
     /*
-     * Documentation for printQ
-     * Simply prints the completed Q-Table values
+     * Documentation for getFeasibleSet
+     * Given the current node s wherein the traveling salesman is located and his current available budget B,
+     * the set of s’s neighbor nodes that the salesman can travel to while still having enough budgets to go to
+     * destination node t is called node s's feasible set.
+     * This function will be used across all algorithms
      */
-    static void printQ() {
-        System.out.println("Q matrix");
-        for (int i = 0; i < Q.length; i++) {
-            System.out.print("From state " + i + ":  ");
-            for (int j = 0; j < Q[i].length; j++) {
-                System.out.printf("%-15.2f ", (Q[i][j]));
+    private static ArrayList<Integer> getFeasibleSet(int s) {
+        ArrayList<Integer> feasible = new ArrayList<>();
+        for (int i = 1; i < sGraph.getLastNode(); i++) {
+            if (sGraph.getMark(i) == UNVISITED &&
+                sGraph.shortestPath(s, i) + sGraph.shortestPath(i, sGraph.getLastNode()) < budget - total_wt
+            ) {
+                feasible.add(i);
             }
-            System.out.println("\n");
         }
+        return feasible;
     }
 
     /*
@@ -490,37 +491,37 @@ public class Exploration {
      * then visits it, and repeats until the prizeGoal is met.
      * Includes printouts for debugging
      */
-    private static void traverseQ()
-    {
+    private static void traverseQ() {
         reset();
         DFSGreed_Q();
+        remainingBudget = budget - total_wt; // updates remaining budget
     }
 
-    static void DFSGreed_Q()
-    {
+    static void DFSGreed_Q() {
         int curState = 0;
         sGraph.setMark(curState, VISITED);
+        route.add(curState);
         while (curState != sGraph.getLastNode()) {
             int nexState = getHighestQ(curState);
             if (nexState == -1) {
                 nexState = sGraph.getLastNode();
+                if (total_wt + sGraph.weight(curState, nexState) > budget) {
+                    // early return if we don't have enough budget to go to the end
+                    break;
+                }
             }
             sGraph.setMark(nexState, VISITED);
-//            System.out.printf("Going from %-18s to %-18s was %-5.2fkm collecting $%-5d with a ratio of $%.7f/km\n", sGraph.getName(curState), sGraph.getName(nexState), sGraph.weight(curState, nexState), sGraph.getPrize(nexState), sGraph.getPrize(nexState)/sGraph.weight(curState, nexState));
-            total_wt += sGraph.weight(curState, nexState);
-            total_prize += sGraph.getPrize(nexState);
+            sGraph.printExtraPathIfNeeded(curState, nexState, route);
+            total_wt += sGraph.shortestPath(curState, nexState);
             curState = nexState;
         }
-    }
-
-    private static ArrayList<Integer> getFeasibleSet(int s) {
-        ArrayList<Integer> feasible = new ArrayList<>();
-        for (int i = 1; i < sGraph.getLastNode(); i++) {
-            if (sGraph.getMark(i) == UNVISITED && sGraph.weight(s, i) + sGraph.weight(i, sGraph.getLastNode()) < budget - total_wt) {
-                feasible.add(i);
+        total_prize = 0;
+        for (int city : route) {
+            if (sGraph.getMark(city) != 42) {
+                sGraph.setMark(city, 42);
+                total_prize += sGraph.getPrize(city);
             }
         }
-        return feasible;
     }
 
     private static void traverseR()
@@ -535,27 +536,24 @@ public class Exploration {
             sortedNodes.add(i);
         }
 
+        route.add(r);
         while (budget > total_wt && flag) {
             final int rFinal = r;
             // sort all nodes in descending order of their prizes cost ratio
             sortedNodes.sort(
                 (o1, o2) ->
                     Double.compare(
-                        sGraph.getPrize(o2) / sGraph.weight(o2, rFinal), sGraph.getPrize(o1) / sGraph.weight(o1, rFinal)
+                        sGraph.getPrize(o2) / sGraph.shortestPath(o2, rFinal),
+                        sGraph.getPrize(o1) / sGraph.shortestPath(o1, rFinal)
                     )
             );
             int k;
             for (k = 0; k < sortedNodes.size(); k++) {
                 int maxPrizeRatioCity = sortedNodes.get(k);
+
                 if (getFeasibleSet(r).contains(maxPrizeRatioCity)) {
-                    System.out.printf(
-                        "Going from %-18s to %-18s was %-5.2fkm collecting $%-5d with a ratio of $%.7f/km\n",
-                        sGraph.getName(r), sGraph.getName(maxPrizeRatioCity),
-                        sGraph.weight(r, maxPrizeRatioCity), sGraph.getPrize(maxPrizeRatioCity),
-                        sGraph.getPrize(maxPrizeRatioCity)/sGraph.weight(r, maxPrizeRatioCity)
-                    );
-                    total_wt += sGraph.weight(r, maxPrizeRatioCity);
-                    total_prize += sGraph.getPrize(maxPrizeRatioCity);
+                    sGraph.printExtraPathIfNeeded(r, maxPrizeRatioCity, route);
+                    total_wt += sGraph.shortestPath(r, maxPrizeRatioCity);
                     r = maxPrizeRatioCity;
                     sGraph.setMark(maxPrizeRatioCity, VISITED);
                     break;
@@ -563,10 +561,20 @@ public class Exploration {
             }
             if (k == sortedNodes.size()) flag = false;
         }
-
-        total_wt += sGraph.weight(r, sGraph.getLastNode());
-        total_prize += sGraph.getPrize(sGraph.getLastNode());
+        if (budget >= total_wt + sGraph.shortestPath(r, sGraph.getLastNode())) {
+            sGraph.printExtraPathIfNeeded(r, sGraph.getLastNode(), route);
+            total_wt += sGraph.shortestPath(r, sGraph.getLastNode());
+        }
+        remainingBudget = budget - total_wt; //updates remaining budget
+        total_prize = 0;
+        for (int city : route) {
+            if (sGraph.getMark(city) != 42) {
+                sGraph.setMark(city, 42);
+                total_prize += sGraph.getPrize(city);
+            }
+        }
     }
+
 
     private static void traverseP()
     {
@@ -583,24 +591,29 @@ public class Exploration {
         );
         int k = 0; // iterator for sortedNode
         int r = 0; // current city
+        route.add(r);
         while (total_wt < budget && k < sortedNodes.size()) {
             int maxPrizeCity = sortedNodes.get(k);
             if (getFeasibleSet(r).contains(maxPrizeCity)) {
-                System.out.printf(
-                    "Going from %-18s to %-18s was %-5.2fkm collecting $%-5d with a ratio of $%.7f/km\n",
-                    sGraph.getName(r), sGraph.getName(maxPrizeCity),
-                    sGraph.weight(r, maxPrizeCity), sGraph.getPrize(maxPrizeCity),
-                    sGraph.getPrize(maxPrizeCity)/sGraph.weight(r, maxPrizeCity)
-                );
-                total_wt += sGraph.weight(r, maxPrizeCity);
-                total_prize += sGraph.getPrize(maxPrizeCity);
+                sGraph.printExtraPathIfNeeded(r, maxPrizeCity, route);
+                total_wt += sGraph.shortestPath(r, maxPrizeCity);
                 r = maxPrizeCity;
                 sGraph.setMark(maxPrizeCity, VISITED);
             }
             k++;
         }
-        total_wt += sGraph.weight(r, sGraph.getLastNode());
-        total_prize += sGraph.getPrize(sGraph.getLastNode());
+        if (budget >= total_wt + sGraph.shortestPath(r, sGraph.getLastNode())) {
+            sGraph.printExtraPathIfNeeded(r, sGraph.getLastNode(), route);
+            total_wt += sGraph.shortestPath(r, sGraph.getLastNode());
+        }
+        remainingBudget = budget - total_wt; //updates remaining budget
+        total_prize = 0;
+        for (int city : route) {
+            if (sGraph.getMark(city) != 42) {
+                sGraph.setMark(city, 42);
+                total_prize += sGraph.getPrize(city);
+            }
+        }
     }
 
     /*
@@ -613,7 +626,7 @@ public class Exploration {
         double runningHigh = Double.NEGATIVE_INFINITY;
         int index = -1;
         for (int i = 1; i < sGraph.getLastNode(); i++)
-            if (Q[v][i] > runningHigh && sGraph.getMark(i) == UNVISITED && sGraph.weight(v, i) + sGraph.weight(i, sGraph.getLastNode()) < budget - total_wt)
+            if (Q[v][i] > runningHigh && sGraph.getMark(i) == UNVISITED && sGraph.shortestPath(v, i) + sGraph.shortestPath(i, sGraph.getLastNode()) < budget - total_wt)
             {
                 runningHigh = Q[v][i];
                 index = i;
