@@ -1,0 +1,44 @@
+
+Gurobi 11.0.1 (win64, Java) logging started Wed Apr  8 19:28:12 2026
+
+Set parameter WLSAccessID
+Set parameter WLSSecret
+Set parameter LicenseID to value 2798939
+Set parameter LogFile to value "ilp_solver.log"
+Academic license 2798939 - for non-commercial use only - registered to zo___@toromail.csudh.edu
+Set parameter TimeLimit to value 120
+Gurobi Optimizer version 11.0.1 build v11.0.1rc0 (win64 - Windows 11+.0 (26200.2))
+
+CPU model: 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 4 physical cores, 8 logical processors, using up to 8 threads
+
+Academic license 2798939 - for non-commercial use only - registered to zo___@toromail.csudh.edu
+Optimize a model with 93 rows, 110 columns and 502 nonzeros
+Model fingerprint: 0x993ca022
+Variable types: 10 continuous, 100 integer (100 binary)
+Coefficient statistics:
+  Matrix range     [1e+00, 3e+03]
+  Objective range  [2e+01, 1e+02]
+  Bounds range     [1e+00, 9e+00]
+  RHS range        [1e+00, 8e+03]
+Found heuristic solution: objective 119.0000000
+Presolve removed 10 rows and 21 columns
+Presolve time: 0.00s
+Presolved: 83 rows, 89 columns, 788 nonzeros
+Variable types: 8 continuous, 81 integer (81 binary)
+
+Root relaxation: objective 5.980000e+02, 28 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+H    0     0                     598.0000000  598.00000  0.00%     -    0s
+     0     0  598.00000    0    4  598.00000  598.00000  0.00%     -    0s
+
+Explored 1 nodes (65 simplex iterations) in 0.01 seconds (0.00 work units)
+Thread count was 8 (of 8 available processors)
+
+Solution count 2: 598 119 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 5.980000000000e+02, best bound 5.980000000000e+02, gap 0.0000%

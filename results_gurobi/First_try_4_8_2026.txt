@@ -1,0 +1,118 @@
+Looking for files in: C:\Users\zouali1\OneDrive - csudh.edu\Documents\BCPCTSP\BCPCTSP
+Enter the start city: Enter the end city: Enter the budget in miles: Going from Albany,NY          to Annapolis,MD       was 290.64miles collecting $98    with a ratio of $0.3371816/miles
+Going from Annapolis,MD       to Atlanta,GA         was 567.21miles collecting $84    with a ratio of $0.1480944/miles
+Going from Atlanta,GA         to Augusta,ME         was 1065.49miles collecting $74    with a ratio of $0.0694517/miles
+Going from Augusta,ME         to Austin,TX          was 1799.36miles collecting $65    with a ratio of $0.0361239/miles
+Going from Austin,TX          to BatonRouge,LA      was 389.95miles collecting $50    with a ratio of $0.1282215/miles
+Going from BatonRouge,LA      to Bismarck,ND        was 1238.59miles collecting $43    with a ratio of $0.0347170/miles
+Going from Bismarck,ND        to Boston,MA          was 1481.80miles collecting $28    with a ratio of $0.0188959/miles
+Going from Boston,MA          to Albany,NY          was 138.40 miles
+Algorithm took 13.1304ms to process.
+
+Total distance: 6971.44 miles
+Collected Prize: $442
+Route: [0, 1, 2, 3, 4, 5, 6, 8, 10]
+Remaining Budget: 1028.56 miles
+
+========== Second greedy algorithm ==========
+Going from Albany,NY          to Annapolis,MD       was 290.64miles collecting $98    with a ratio of $0.3371816/miles
+Going from Annapolis,MD       to Atlanta,GA         was 567.21miles collecting $84    with a ratio of $0.1480944/miles
+Going from Atlanta,GA         to BatonRouge,LA      was 457.20miles collecting $50    with a ratio of $0.1093624/miles
+Going from BatonRouge,LA      to Austin,TX          was 389.95miles collecting $65    with a ratio of $0.1666879/miles
+Going from Austin,TX          to Augusta,ME         was 1799.36miles collecting $74    with a ratio of $0.0411257/miles
+Going from Augusta,ME         to Boston,MA          was 148.98miles collecting $28    with a ratio of $0.1879467/miles
+Going from Boston,MA          to Bismarck,ND        was 1481.80miles collecting $43    with a ratio of $0.0290187/miles
+Going from Bismarck,ND        to Albany,NY          was 1347.20 miles
+Algorithm took 14.5146ms to process.
+
+Total distance: 6482.34 miles
+Collected Prize: $442
+Route: [0, 1, 2, 5, 4, 3, 8, 6, 10]
+Remaining Budget: 1517.66 miles
+
+========== BC-PC-TSP MARL algorithm ==========
+
+Cost =[[9999.99, 290.64, 840.35, 229.24, 1571.30, 1275.43, 1347.20, 2112.77, 138.40, 2379.59],
+[290.64, 9999.99, 567.21, 504.07, 1342.01, 1017.02, 1333.55, 2061.38, 367.04, 2293.68],
+[840.35, 567.21, 9999.99, 1065.49, 815.75, 457.20, 1242.23, 1828.27, 933.68, 1983.93],
+[229.24, 504.07, 1065.49, 9999.99, 1799.36, 1504.10, 1496.46, 2272.57, 148.98, 2555.68],
+[1571.30, 1342.01, 815.75, 1799.36, 9999.99, 389.95, 1152.20, 1365.52, 1689.51, 1385.43],
+[1275.43, 1017.02, 457.20, 1504.10, 389.95, 9999.99, 1238.59, 1638.34, 1379.66, 1716.64],
+[1347.20, 1333.55, 1242.23, 1496.46, 1152.20, 1238.59, 9999.99, 779.08, 1481.80, 1089.11],
+[2112.77, 2061.38, 1828.27, 2272.57, 1365.52, 1638.34, 779.08, 9999.99, 2249.55, 358.10],
+[138.40, 367.04, 933.68, 148.98, 1689.51, 1379.66, 1481.80, 2249.55, 9999.99, 2517.86],
+[2379.59, 2293.68, 1983.93, 2555.68, 1385.43, 1716.64, 1089.11, 358.10, 2517.86, 9999.99]];
+p=[0, 98, 84, 74, 65, 50, 43, 37, 28, 19];
+Going from Albany,NY          to Annapolis,MD       was 290.64miles collecting $98    with a ratio of $0.3371816/miles
+Going from Annapolis,MD       to Atlanta,GA         was 567.21miles collecting $84    with a ratio of $0.1480944/miles
+Going from Atlanta,GA         to BatonRouge,LA      was 457.20miles collecting $50    with a ratio of $0.1093624/miles
+Going from BatonRouge,LA      to Austin,TX          was 389.95miles collecting $65    with a ratio of $0.1666879/miles
+Going from Austin,TX          to CarsonCity,NV      was 1385.43miles collecting $19    with a ratio of $0.0137141/miles
+Going from CarsonCity,NV      to Boise,ID           was 358.10miles collecting $37    with a ratio of $0.1033218/miles
+Going from Boise,ID           to Bismarck,ND        was 779.08miles collecting $43    with a ratio of $0.0551931/miles
+Going from Bismarck,ND        to Boston,MA          was 1481.80miles collecting $28    with a ratio of $0.0188959/miles
+Going from Boston,MA          to Augusta,ME         was 148.98miles collecting $74    with a ratio of $0.4967163/miles
+Going from Augusta,ME         to Albany,NY          was 229.24miles
+Algorithm took 301.3759ms to process.
+
+Total distance: 6087.64 Miles
+Collected Prize: $498
+Route: Albany,NY(0), Annapolis,MD(1), Atlanta,GA(2), BatonRouge,LA(5), Austin,TX(4), CarsonCity,NV(9), Boise,ID(7), Bismarck,ND(6), Boston,MA(8), Augusta,ME(3), Albany,NY(0)
+Remaining Budget: 1912.36 Miles
+
+Value of P^m: 498
+R^m Route: Albany,NY Annapolis,MD(1), Boston,MA(8), Augusta,ME(3), BatonRouge,LA(5), Austin,TX(4), CarsonCity,NV(9), Boise,ID(7), Bismarck,ND(6), Atlanta,GA(2), Albany,NY(0)
+Found on episode: 0
+
+========== Optimal ILP Algorithm ==========
+Algorithm took 2.0E-4ms to process.
+
+Total distance: 6087.64 miles
+Remaining distance: 1912.36km
+Collected Prize: $698
+Route: [0, 1, 2, 5, 4, 9, 7, 6, 8, 3, 10]
+Remaining Budget: 1912.36 miles
+Set parameter WLSAccessID
+Set parameter WLSSecret
+Set parameter LicenseID to value 2798939
+Set parameter LogFile to value "ilp_solver.log"
+Academic license 2798939 - for non-commercial use only - registered to zo___@toromail.csudh.edu
+Set parameter TimeLimit to value 120
+Gurobi Optimizer version 11.0.1 build v11.0.1rc0 (win64 - Windows 11+.0 (26200.2))
+
+CPU model: 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 4 physical cores, 8 logical processors, using up to 8 threads
+
+Academic license 2798939 - for non-commercial use only - registered to zo___@toromail.csudh.edu
+Optimize a model with 93 rows, 110 columns and 502 nonzeros
+Model fingerprint: 0x993ca022
+Variable types: 10 continuous, 100 integer (100 binary)
+Coefficient statistics:
+  Matrix range     [1e+00, 3e+03]
+  Objective range  [2e+01, 1e+02]
+  Bounds range     [1e+00, 9e+00]
+  RHS range        [1e+00, 8e+03]
+Found heuristic solution: objective 119.0000000
+Presolve removed 10 rows and 21 columns
+Presolve time: 0.00s
+Presolved: 83 rows, 89 columns, 788 nonzeros
+Variable types: 8 continuous, 81 integer (81 binary)
+
+Root relaxation: objective 5.980000e+02, 28 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+H    0     0                     598.0000000  598.00000  0.00%     -    0s
+     0     0  598.00000    0    4  598.00000  598.00000  0.00%     -    0s
+
+Explored 1 nodes (65 simplex iterations) in 0.01 seconds (0.00 work units)
+Thread count was 8 (of 8 available processors)
+
+Solution count 2: 598 119
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 5.980000000000e+02, best bound 5.980000000000e+02, gap 0.0000%
+Optimal Prize Found: 598.0
+Total Distance: 7647.93526563934
+Route Indices: [0, 3, 8, 1, 4, 7, 6, 2, 5, 9]
