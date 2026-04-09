@@ -11,7 +11,7 @@ import java.util.*;
 public class Exploration {
     //meta variable
     
-    static String fileName = "Capital_Cities10.txt";
+    static String fileName = "Capital_Cities.txt";
 
     //CHANGE CITY AND PRIZEGOAL
     static String begin = "albany,ny";
