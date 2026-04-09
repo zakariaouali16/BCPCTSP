@@ -6,7 +6,7 @@ import java.util.*;
 public class TableData {
 
     //meta variable
-    static String fileName = "Capital_Cities.txt";
+    static String fileName = "Capital_Cities10.txt";
     static int TOTAL_DATA = 20;
     static int[] BUDGETS_ARRAY = new int[] {10000, 20000, 30000, 40000};
     static int[] AGENTS_ARRAY = new int[] {1,5,10,15,20};
@@ -137,7 +137,7 @@ public class TableData {
     static void initList()
     {
         //(1)
-        File towns = new File("src/" + fileName);
+        File towns = new File("src/main/resources/" + fileName);
         arrCities = new LinkedList<>();
         ArrayList<String> nameList = new ArrayList<>();
 

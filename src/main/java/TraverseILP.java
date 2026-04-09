@@ -13,7 +13,7 @@ public class TraverseILP {
     private int startNode;
     private int endNode;
     private double budget;
-    
+
     // Results
     private List<Integer> bestRoute;
     private double totalDistance;
@@ -34,10 +34,10 @@ public class TraverseILP {
 
     /**
      * Solves the Integer Linear Program using Google OR-Tools.
-     * @return true if an optimal solution was found, false otherwise.
+     * * @return true if an optimal solution was found, false otherwise.
      */
     public boolean solve() {
-        // Ensure native libraries are loaded. 
+        // Ensure native libraries are loaded.
         // Note: It's safer to also call this once at the very top of your main.java
         Loader.loadNativeLibraries();
 
@@ -54,7 +54,7 @@ public class TraverseILP {
         // ---------------------------------------------------------
         // 1. VARIABLES
         // ---------------------------------------------------------
-        
+
         // x[i][j] = 1 if the route goes directly from city i to city j
         MPVariable[][] x = new MPVariable[n][n];
         for (int i = 0; i < n; i++) {
@@ -82,18 +82,34 @@ public class TraverseILP {
         // ---------------------------------------------------------
 
         // A. Start and End node constraints
-        // Force the start node to be visited and have exactly 1 outgoing edge
-        solver.makeConstraint(1, 1, "StartNodeVisited").setCoefficient(y[startNode], 1);
-        MPConstraint startOut = solver.makeConstraint(1, 1, "StartOut");
-        for (int j = 0; j < n; j++) {
-            if (startNode != j) startOut.setCoefficient(x[startNode][j], 1);
+        // Force 0 incoming edges to the start node
+        MPConstraint startIn = solver.makeConstraint(0, 0, "StartIn");
+        for (int i = 0; i < n; i++) {
+            if (i != startNode)
+                startIn.setCoefficient(x[i][startNode], 1);
         }
 
-        // Force the end node to be visited and have exactly 1 incoming edge
-        solver.makeConstraint(1, 1, "EndNodeVisited").setCoefficient(y[endNode], 1);
+        // Force exactly 1 outgoing edge from the start node
+        MPConstraint startOut = solver.makeConstraint(1, 1, "StartOut");
+        for (int j = 0; j < n; j++) {
+            if (j != startNode) {
+                startOut.setCoefficient(x[startNode][j], 1);
+            }
+        }
+
+        // Force 0 outgoing edges from the end node
+        MPConstraint endOut = solver.makeConstraint(0, 0, "EndOut");
+        for (int j = 0; j < n; j++) {
+            if (j != endNode)
+                endOut.setCoefficient(x[endNode][j], 1);
+        }
+
+        // Force exactly 1 incoming edge to the end node
         MPConstraint endIn = solver.makeConstraint(1, 1, "EndIn");
         for (int i = 0; i < n; i++) {
-            if (i != endNode) endIn.setCoefficient(x[i][endNode], 1);
+            if (i != endNode) {
+                endIn.setCoefficient(x[i][endNode], 1);
+            }
         }
 
         // B. Flow Conservation
@@ -103,13 +119,15 @@ public class TraverseILP {
                 MPConstraint flowIn = solver.makeConstraint(0, 0, "FlowIn_" + k);
                 flowIn.setCoefficient(y[k], -1);
                 for (int i = 0; i < n; i++) {
-                    if (i != k) flowIn.setCoefficient(x[i][k], 1);
+                    if (i != k)
+                        flowIn.setCoefficient(x[i][k], 1);
                 }
 
                 MPConstraint flowOut = solver.makeConstraint(0, 0, "FlowOut_" + k);
                 flowOut.setCoefficient(y[k], -1);
                 for (int j = 0; j < n; j++) {
-                    if (k != j) flowOut.setCoefficient(x[k][j], 1);
+                    if (k != j)
+                        flowOut.setCoefficient(x[k][j], 1);
                 }
             }
         }
@@ -147,38 +165,63 @@ public class TraverseILP {
         objective.setMaximization();
 
         // ---------------------------------------------------------
+        // ---------------------------------------------------------
         // 4. SOLVE & EXTRACT RESULTS
         // ---------------------------------------------------------
+
+        // 1. Put the settings BEFORE you call solve()
+        solver.enableOutput();
+        solver.setTimeLimit(120000); // 120,000 milliseconds = 2 minutes
+
+        // 2. Call solve() exactly ONCE
         MPSolver.ResultStatus resultStatus = solver.solve();
 
-        if (resultStatus == MPSolver.ResultStatus.OPTIMAL) {
+        // 3. Accept both OPTIMAL (perfect) and FEASIBLE (best found before time limit)
+        if (resultStatus == MPSolver.ResultStatus.OPTIMAL || resultStatus == MPSolver.ResultStatus.FEASIBLE) {
             this.totalPrize = objective.value();
-            
+
             // Extract the path by following the x variables that equal 1
             int curr = startNode;
             bestRoute.add(curr);
-            
+
             while (curr != endNode) {
+                boolean foundNext = false;
                 for (int j = 0; j < n; j++) {
                     if (curr != j && x[curr][j].solutionValue() > 0.5) {
                         this.totalDistance += graph.shortestPath(curr, j);
                         curr = j;
                         bestRoute.add(curr);
+                        foundNext = true;
                         break;
                     }
+                }
+                
+                // If we didn't find a place to go, break to avoid an infinite loop
+                if (!foundNext) {
+                    System.out.println("Path broken or incomplete. Ending extraction.");
+                    break;
                 }
             }
             return true;
         } else {
-            System.out.println("The solver could not find an optimal solution.");
+            System.out.println("The solver could not find a solution in the given time.");
             return false;
         }
+
     }
 
     // ---------------------------------------------------------
     // GETTERS FOR MAIN.JAVA
     // ---------------------------------------------------------
-    public List<Integer> getBestRoute() { return bestRoute; }
-    public double getTotalDistance() { return totalDistance; }
-    public double getTotalPrize() { return totalPrize; }
+    public List<Integer> getBestRoute() {
+        return bestRoute;
+    }
+
+    public double getTotalDistance() {
+        return totalDistance;
+    }
+
+    public double getTotalPrize() {
+        return totalPrize;
+    }
 }

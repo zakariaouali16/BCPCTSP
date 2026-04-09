@@ -8,8 +8,9 @@ import com.google.ortools.linearsolver.MPObjective;
 import com.google.ortools.linearsolver.MPSolver;
 import com.google.ortools.linearsolver.MPVariable;
 */
-public class main {
+public class Main {
     // meta variable
+    
     static String fileName = "Capital_Cities10.txt";
 
     // CHANGE CITY AND PRIZEGOAL
@@ -656,7 +657,7 @@ public class main {
 
     static void initList(boolean flag) {
         // (1)
-        File towns = new File("src/" + fileName);
+        File towns = new File("src/main/resources/" + fileName);
         arrCities = new LinkedList<>();
         nameList = new ArrayList<>();
 
@@ -799,7 +800,7 @@ public class main {
      */
     static void initList() {
         // (1)
-        File towns = new File("src/" + fileName);
+        File towns = new File("src/main/resources/" + fileName);
         arrCities = new LinkedList<>();
         nameList = new ArrayList<>();
 
