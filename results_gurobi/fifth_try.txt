@@ -8,7 +8,7 @@ Going from Salem,OR           to Indianapolis,IN    was 1894.88miles collecting 
 Going from Indianapolis,IN    to Atlanta,GA         was 426.36miles collecting $84    with a ratio of $0.1970147/miles
 Going from Atlanta,GA         to Harrisburg,PA      was 610.43miles collecting $12    with a ratio of $0.0196582/miles
 Going from Harrisburg,PA      to Albany,NY          was 230.00 miles
-Algorithm took 25.2624ms to process.
+Algorithm took 202.055799ms to process.
 
 Total distance: 7997.18 miles
 Collected Prize: $656
@@ -49,7 +49,7 @@ Going from Frankfort,KY       to Charleston,WV      was 176.93miles collecting $
 Going from Charleston,WV      to Harrisburg,PA      was 285.89miles collecting $12    with a ratio of $0.0419749/miles
 Going from Harrisburg,PA      to Hartford,CT        was 240.91miles collecting $3     with a ratio of $0.0124526/miles
 Going from Hartford,CT        to Albany,NY          was 82.23 miles
-Algorithm took 50.5367ms to process.
+Algorithm took 95.902299ms to process.
 
 Total distance: 7946.24 miles
 Collected Prize: $1640
@@ -69,11 +69,7 @@ Cost =[[9999.99, 290.64, 840.35, 229.24, 1571.30, 1275.43, 1347.20, 2112.77, 138
 [138.40, 367.04, 933.68, 148.98, 1689.51, 1379.66, 1481.80, 2249.55, 9999.99, 2517.86],
 [2379.59, 2293.68, 1983.93, 2555.68, 1385.43, 1716.64, 1089.11, 358.10, 2517.86, 9999.99]];
 p=[0, 98, 84, 74, 65, 50, 43, 37, 28, 19];
-Going from Albany,NY          to Concord,NH         was 118.35miles collecting $62    with a ratio of $0.5238613/miles
-Going from Concord,NH         to Boston,MA          was 63.27miles collecting $28    with a ratio of $0.4425688/miles
-Going from Boston,MA          to Providence,RI      was 40.53miles collecting $42    with a ratio of $1.0362975/miles
-Going from Providence,RI      to Hartford,CT        was 65.32miles collecting $3     with a ratio of $0.0459278/miles
-Going from Hartford,CT        to Trenton,NJ         was 152.05miles collecting $33    with a ratio of $0.2170369/miles
+Going from Albany,NY          to Trenton,NJ         was 175.65miles collecting $33    with a ratio of $0.1878781/miles
 Going from Trenton,NJ         to Dover,DE           was 83.39miles collecting $30    with a ratio of $0.3597496/miles
 Going from Dover,DE           to Annapolis,MD       was 53.43miles collecting $98    with a ratio of $1.8340586/miles
 Going from Annapolis,MD       to Richmond,VA        was 111.61miles collecting $28    with a ratio of $0.2508802/miles
@@ -86,7 +82,8 @@ Going from Indianapolis,IN    to Springfield,IL     was 185.02miles collecting $
 Going from Springfield,IL     to JeffersonCity,MO   was 158.64miles collecting $69    with a ratio of $0.4349341/miles
 Going from JeffersonCity,MO   to Topeka,KS          was 191.03miles collecting $44    with a ratio of $0.2303277/miles
 Going from Topeka,KS          to Lincoln,NE         was 132.81miles collecting $49    with a ratio of $0.3689424/miles
-Going from Lincoln,NE         to Pierre,SD          was 307.28miles collecting $55    with a ratio of $0.1789888/miles
+Going from Lincoln,NE         to DesMoines,IA       was 169.40miles collecting $48    with a ratio of $0.2833488/miles
+Going from DesMoines,IA       to Pierre,SD          was 390.04miles collecting $55    with a ratio of $0.1410111/miles
 Going from Pierre,SD          to Bismarck,ND        was 170.46miles collecting $43    with a ratio of $0.2522577/miles
 Going from Bismarck,ND        to Helena,MT          was 530.99miles collecting $93    with a ratio of $0.1751431/miles
 Going from Helena,MT          to SaltLakeCity,UT    was 400.49miles collecting $85    with a ratio of $0.2122379/miles
@@ -94,36 +91,36 @@ Going from SaltLakeCity,UT    to Cheyenne,WY        was 368.75miles collecting $
 Going from Cheyenne,WY        to Denver,CO          was 96.99miles collecting $59    with a ratio of $0.6083307/miles
 Going from Denver,CO          to SantaFe,NM         was 284.48miles collecting $75    with a ratio of $0.2636381/miles
 Going from SantaFe,NM         to OklahomaCity,OK    was 473.01miles collecting $88    with a ratio of $0.1860409/miles
-Going from OklahomaCity,OK    to Austin,TX          was 359.96miles collecting $65    with a ratio of $0.1805733/miles
-Going from Austin,TX          to BatonRouge,LA      was 389.95miles collecting $50    with a ratio of $0.1282215/miles
-Going from BatonRouge,LA      to Jackson,MS         was 140.39miles collecting $71    with a ratio of $0.5057241/miles
-Going from Jackson,MS         to LittleRock,AR      was 207.40miles collecting $35    with a ratio of $0.1687562/miles
-Going from LittleRock,AR      to DesMoines,IA       was 477.20miles collecting $48    with a ratio of $0.1005877/miles
-Going from DesMoines,IA       to Madison,WI         was 238.06miles collecting $27    with a ratio of $0.1134152/miles
-Going from Madison,WI         to Lansing,MI         was 244.96miles collecting $53    with a ratio of $0.2163624/miles
-Going from Lansing,MI         to Columbus,OH        was 207.40miles collecting $77    with a ratio of $0.3712564/miles
-Going from Columbus,OH        to Charleston,WV      was 134.33miles collecting $8     with a ratio of $0.0595532/miles
-Going from Charleston,WV      to Harrisburg,PA      was 285.89miles collecting $12    with a ratio of $0.0419749/miles
-Going from Harrisburg,PA      to Albany,NY          was 230.00miles
-Algorithm took 6191.1703ms to process.
+Going from OklahomaCity,OK    to LittleRock,AR      was 298.47miles collecting $35    with a ratio of $0.1172632/miles
+Going from LittleRock,AR      to Jackson,MS         was 207.40miles collecting $71    with a ratio of $0.3423340/miles
+Going from Jackson,MS         to BatonRouge,LA      was 140.39miles collecting $50    with a ratio of $0.3561438/miles
+Going from BatonRouge,LA      to Tallahassee,FL     was 410.37miles collecting $55    with a ratio of $0.1340241/miles
+Going from Tallahassee,FL     to Montgomery,AL      was 178.86miles collecting $18    with a ratio of $0.1006390/miles
+Going from Montgomery,AL      to Frankfort,KY       was 408.44miles collecting $22    with a ratio of $0.0538635/miles
+Going from Frankfort,KY       to Columbus,OH        was 158.28miles collecting $77    with a ratio of $0.4864937/miles
+Going from Columbus,OH        to Lansing,MI         was 207.40miles collecting $53    with a ratio of $0.2555401/miles
+Going from Lansing,MI         to Concord,NH         was 656.81miles collecting $62    with a ratio of $0.0943963/miles
+Going from Concord,NH         to Augusta,ME         was 115.78miles collecting $74    with a ratio of $0.6391571/miles
+Going from Augusta,ME         to Albany,NY          was 229.24miles
+Algorithm took 8730.4063ms to process.
 
-Total distance: 7882.64 Miles
-Collected Prize: $1977
-Route: Albany,NY(0), Concord,NH(14), Boston,MA(8), Providence,RI(36), Hartford,CT(20), Trenton,NJ(47), Dover,DE(17), Annapolis,MD(1), Richmond,VA(38), Raleigh,NC(37), Columbia,SC(12), Atlanta,GA(2), Nashville,TN(31), Indianapolis,IN(22), Springfield,IL(44), JeffersonCity,MO(24), Topeka,KS(46), Lincoln,NE(26), Pierre,SD(35), Bismarck,ND(6), Helena,MT(21), SaltLakeCity,UT(42), Cheyenne,WY(11), Denver,CO(15), SantaFe,NM(43), OklahomaCity,OK(32), Austin,TX(4), BatonRouge,LA(5), Jackson,MS(23), LittleRock,AR(27), DesMoines,IA(16), Madison,WI(28), Lansing,MI(25), Columbus,OH(13), Charleston,WV(10), Harrisburg,PA(19), Albany,NY(0)
-Remaining Budget: 117.36 Miles
+Total distance: 7966.82 Miles
+Collected Prize: $1961
+Route: Albany,NY(0), Trenton,NJ(47), Dover,DE(17), Annapolis,MD(1), Richmond,VA(38), Raleigh,NC(37), Columbia,SC(12), Atlanta,GA(2), Nashville,TN(31), Indianapolis,IN(22), Springfield,IL(44), JeffersonCity,MO(24), Topeka,KS(46), Lincoln,NE(26), DesMoines,IA(16), Pierre,SD(35), Bismarck,ND(6), Helena,MT(21), SaltLakeCity,UT(42), Cheyenne,WY(11), Denver,CO(15), SantaFe,NM(43), OklahomaCity,OK(32), LittleRock,AR(27), Jackson,MS(23), BatonRouge,LA(5), Tallahassee,FL(45), Montgomery,AL(29), Frankfort,KY(18), Columbus,OH(13), Lansing,MI(25), Concord,NH(14), Augusta,ME(3), Albany,NY(0)
+Remaining Budget: 33.18 Miles
 
-Value of P^m: 2043
-R^m Route: Albany,NY Concord,NH(14), Augusta,ME(3), Boston,MA(8), Providence,RI(36), Hartford,CT(20), Trenton,NJ(47), Dover,DE(17), Annapolis,MD(1), Richmond,VA(38), Raleigh,NC(37), Columbia,SC(12), Atlanta,GA(2), Nashville,TN(31), Indianapolis,IN(22), Springfield,IL(44), JeffersonCity,MO(24), Topeka,KS(46), Lincoln,NE(26), Pierre,SD(35), Bismarck,ND(6), Helena,MT(21), SaltLakeCity,UT(42), Cheyenne,WY(11), Denver,CO(15), SantaFe,NM(43), OklahomaCity,OK(32), Austin,TX(4), BatonRouge,LA(5), Jackson,MS(23), LittleRock,AR(27), DesMoines,IA(16), Madison,WI(28), Lansing,MI(25), Columbus,OH(13), Harrisburg,PA(19), Albany,NY(0)
-Found on episode: 205
+Value of P^m: 2046
+R^m Route: Albany,NY Concord,NH(14), Augusta,ME(3), Boston,MA(8), Providence,RI(36), Hartford,CT(20), Trenton,NJ(47), Dover,DE(17), Annapolis,MD(1), Columbus,OH(13), Lansing,MI(25), Indianapolis,IN(22), Springfield,IL(44), JeffersonCity,MO(24), Topeka,KS(46), Lincoln,NE(26), DesMoines,IA(16), Pierre,SD(35), Bismarck,ND(6), Helena,MT(21), SaltLakeCity,UT(42), Cheyenne,WY(11), Denver,CO(15), SantaFe,NM(43), OklahomaCity,OK(32), LittleRock,AR(27), Jackson,MS(23), BatonRouge,LA(5), Tallahassee,FL(45), Montgomery,AL(29), Atlanta,GA(2), Nashville,TN(31), Frankfort,KY(18), Columbia,SC(12), Raleigh,NC(37), Richmond,VA(38), Harrisburg,PA(19), Albany,NY(0)
+Found on episode: 6908
 
 ========== Optimal ILP Algorithm ==========
-Algorithm took 6191.1703ms to process.
+Algorithm took 8730.4063ms to process.
 
-Total distance: 7882.64 miles
-Remaining distance: 117.36km
-Collected Prize: $2177
-Route: [0, 14, 8, 36, 20, 47, 17, 1, 38, 37, 12, 2, 31, 22, 44, 24, 46, 26, 35, 6, 21, 42, 11, 15, 43, 32, 4, 5, 23, 27, 16, 28, 25, 13, 10, 19, 48]
-Remaining Budget: 117.36 miles
+Total distance: 7966.82 miles
+Remaining distance:  33.18km
+Collected Prize: $2161
+Route: [0, 47, 17, 1, 38, 37, 12, 2, 31, 22, 44, 24, 46, 26, 16, 35, 6, 21, 42, 11, 15, 43, 32, 27, 23, 5, 45, 29, 18, 13, 25, 14, 3, 48]
+Remaining Budget: 33.18 miles
 Set parameter WLSAccessID
 Set parameter WLSSecret
 Set parameter LicenseID to value 2798939
@@ -146,11 +143,11 @@ Coefficient statistics:
   RHS range        [1e+00, 8e+03]
 Found heuristic solution: objective 133.0000000
 Presolve removed 48 rows and 97 columns
-Presolve time: 0.03s
+Presolve time: 0.02s
 Presolved: 2211 rows, 2255 columns, 12881 nonzeros
 Variable types: 46 continuous, 2209 integer (2209 binary)
 
-Root relaxation: objective 2.535834e+03, 881 iterations, 0.06 seconds (0.02 work units)
+Root relaxation: objective 2.535834e+03, 881 iterations, 0.02 seconds (0.02 work units)
 
     Nodes    |    Current Node    |     Objective Bounds      |     Work
  Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
@@ -172,38 +169,38 @@ H    0     0                    1472.0000000 2386.24645  62.1%     -    0s
      0     0 2345.14229    0   77 1472.00000 2345.14229  59.3%     -    0s
 H    0     0                    1637.0000000 2341.13317  43.0%     -    0s
      0     0 2341.13317    0   75 1637.00000 2341.13317  43.0%     -    0s
-     0     0 2341.13317    0   73 1637.00000 2341.13317  43.0%     -    0s
-     0     0 2341.13317    0   73 1637.00000 2341.13317  43.0%     -    0s
-     0     0 2341.13317    0   82 1637.00000 2341.13317  43.0%     -    0s
-     0     0 2341.13317    0   82 1637.00000 2341.13317  43.0%     -    0s
+     0     0 2341.13317    0   73 1637.00000 2341.13317  43.0%     -    1s
+     0     0 2341.13317    0   73 1637.00000 2341.13317  43.0%     -    1s
+     0     0 2341.13317    0   82 1637.00000 2341.13317  43.0%     -    1s
+     0     0 2341.13317    0   82 1637.00000 2341.13317  43.0%     -    1s
      0     2 2338.05735    0   82 1637.00000 2338.05735  42.8%     -    1s
 H   61    66                    1703.0000000 2338.05735  37.3%  22.1    1s
-H  157   161                    1838.0000000 2338.05735  27.2%  14.8    1s
-H  159   161                    1911.0000000 2338.05735  22.3%  14.7    1s
-H 1216   948                    1914.0000000 2338.05735  22.2%   9.5    3s
-H 1217   900                    1945.0000000 2338.05735  20.2%   9.4    4s
-H 1218   856                    2053.0000000 2338.05735  13.9%   9.4    4s
-  1223   859 2053.00000   53   80 2053.00000 2337.85371  13.9%   9.4    5s
-H 1227   819                    2080.0000000 2335.67933  12.3%   9.4    5s
-H 1236   783                    2082.0000000 2330.64778  11.9%   9.3    6s
-H 1248   751                    2110.0000000 2328.73563  10.4%   9.2    7s
-H 1252   717                    2157.0000000 2328.49998  7.95%  11.3    8s
-  1265   726 2157.00000  119   52 2157.00000 2325.99730  7.83%  11.2   10s
-H 1274   696                    2160.0000000 2325.84609  7.68%  12.6   11s
-H 1279   665                    2163.0000000 2325.70236  7.52%  12.6   11s
-H 1280   631                    2183.0000000 2325.63356  6.53%  12.6   12s
-H 1282   601                    2219.0000000 2325.63050  4.81%  12.6   12s
-H 1302   584                    2232.0000000 2325.29001  4.18%  13.3   15s
-H 1731   682                    2247.0000000 2317.20552  3.12%  20.9   19s
-  1861   699 2292.92101   78   57 2247.00000 2317.20552  3.12%  20.7   20s
-  9356  2037 2278.77383   87   36 2247.00000 2279.37981  1.44%  25.8   25s
- 17927  4033 2256.76419   72   98 2247.00000 2271.49528  1.09%  24.6   30s
-*20307  4180              98    2249.0000000 2269.68262  0.92%  24.4   32s
- 21833  4099     cutoff   85      2249.00000 2268.86311  0.88%  24.7   35s
- 25470  3888 2256.36617   83   20 2249.00000 2266.15044  0.76%  24.6   41s
-*30959  3176             102    2250.0000000 2263.05581  0.58%  24.4   44s
- 32300  2712     cutoff   77      2250.00000 2261.53049  0.51%  24.4   46s
- 36114  1550 2253.14626   73   14 2250.00000 2258.83604  0.39%  24.1   50s
+H  157   161                    1838.0000000 2338.05735  27.2%  14.8    2s
+H  159   161                    1911.0000000 2338.05735  22.3%  14.7    2s
+H 1216   948                    1914.0000000 2338.05735  22.2%   9.5    4s
+H 1217   900                    1945.0000000 2338.05735  20.2%   9.4    5s
+H 1218   856                    2053.0000000 2338.05735  13.9%   9.4    5s
+H 1227   819                    2080.0000000 2335.67933  12.3%   9.4    6s
+H 1236   783                    2082.0000000 2330.64778  11.9%   9.3    8s
+H 1248   751                    2110.0000000 2328.73563  10.4%   9.2    9s
+H 1252   717                    2157.0000000 2328.49998  7.95%  11.3   10s
+H 1274   696                    2160.0000000 2325.84609  7.68%  12.6   13s
+H 1279   665                    2163.0000000 2325.70236  7.52%  12.6   14s
+H 1280   631                    2183.0000000 2325.63356  6.53%  12.6   14s
+  1282   633 2239.70395  103   47 2183.00000 2325.63050  6.53%  12.6   15s
+H 1282   601                    2219.0000000 2325.63050  4.81%  12.6   15s
+H 1302   584                    2232.0000000 2325.29001  4.18%  13.3   18s
+  1323   599 2232.00000   53   78 2232.00000 2321.35783  4.00%  14.9   20s
+H 1731   682                    2247.0000000 2317.20552  3.12%  20.9   24s
+  2067   698 2303.87371   71   65 2247.00000 2312.55639  2.92%  21.3   25s
+  6948  1286 2263.20161   91   30 2247.00000 2283.59326  1.63%  25.7   30s
+ 12695  2906     cutoff   97      2247.00000 2275.70503  1.28%  25.1   35s
+ 18710  4100 2264.14307   82   47 2247.00000 2270.93408  1.07%  24.6   40s
+*20307  4180              98    2249.0000000 2269.68262  0.92%  24.4   41s
+ 23711  4006 infeasible   83      2249.00000 2267.37133  0.82%  24.7   45s
+ 27341  3656 2253.72384   88   46 2249.00000 2265.06671  0.71%  24.7   50s
+*30959  3176             102    2250.0000000 2263.05581  0.58%  24.4   52s
+ 34197  2153 2255.92213   80   56 2250.00000 2260.21977  0.45%  24.3   55s
 
 Cutting planes:
   Learned: 78
@@ -222,14 +219,14 @@ Cutting planes:
   RLT: 12
   Relax-and-lift: 58
 
-Explored 39423 nodes (933030 simplex iterations) in 53.53 seconds (38.54 work units)
+Explored 39423 nodes (933030 simplex iterations) in 58.54 seconds (38.54 work units)
 Thread count was 8 (of 8 available processors)
 
 Solution count 10: 2250 2250 2249 ... 2157
 
 Optimal solution found (tolerance 1.00e-04)
 Best objective 2.250000000000e+03, best bound 2.250000000000e+03, gap 0.0000%
-Algorithm took 54036.9216ms to process.
+Algorithm took 58672.3186ms to process.
 Optimal Prize Found: 2250.0
 Total Distance: 7987.309090003168
 Route Indices: [0, 14, 3, 8, 36, 20, 17, 1, 38, 37, 12, 2, 31, 23, 5, 27, 32, 43, 15, 11, 42, 7, 41, 33, 21, 6, 35, 26, 46, 16, 24, 44, 22, 25, 13, 19, 47]

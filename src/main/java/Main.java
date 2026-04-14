@@ -27,8 +27,9 @@ public class Main {
     static double alpha = 0.1;// learning rate
     static double gamma = 0.3; // discount factor
     static final double delta = 1; // power for Q value
-    static final double beta = 2; // power for distance
+    static final double beta = 3; // power for distance
     static double q0 = 0.5; // coefficient for exploration and exploitation
+    
 
     // flags for graph (do not touch)
     static final int UNVISITED = 0;
