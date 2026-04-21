@@ -3,6 +3,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 
+
 public class TableData {
 
     //meta variable
@@ -10,6 +11,7 @@ public class TableData {
     static int TOTAL_DATA = 20;
     static int[] BUDGETS_ARRAY = new int[] {10000, 20000, 30000, 40000};
     static int[] AGENTS_ARRAY = new int[] {1,5,10,15,20};
+    static Random rand = new Random();
 
     //CHANGE CITY AND PRIZEGOAL
     static String begin = "";
@@ -53,6 +55,13 @@ public class TableData {
             double[][] greedy1Data = new double[2][TOTAL_DATA];
             double[][] greedy2Data = new double[2][TOTAL_DATA];
             double[][] MARLData = new double[2][TOTAL_DATA];
+            double[][] ILPData = new double[2][TOTAL_DATA]; 
+            
+            double[] prizes = new double[TOTAL_DATA];
+            double[] distances = new double[TOTAL_DATA];
+            double[] ilpPrizes = new double[TOTAL_DATA];
+            double[] ilpDistances = new double[TOTAL_DATA];
+
             for (int i = 0; i < TOTAL_DATA; i++) {
                 System.out.println("ROUND " + (i+1));
                 generateRandomCities(b, i);
@@ -61,25 +70,47 @@ public class TableData {
                 initList();
                 initGraph();
                 initStatics();
+
+                // ========== Gurobi ILP algorithm ==========
+                TraverseILP ilpSolver = new TraverseILP(sGraph, 0, sGraph.getLastNode(), budget);
+                if (ilpSolver.solve()) {
+                    ILPData[0][i] = ilpSolver.getTotalPrize();
+                    ILPData[1][i] = ilpSolver.getTotalDistance();
+                    ilpPrizes[i] = ilpSolver.getTotalPrize();
+                    ilpDistances[i] = ilpSolver.getTotalDistance();
+                } else {
+                    System.out.println("Gurobi failed to find optimal solution.");
+                }
+                // ========== BC-PC-TSP MARL algorithm ==========
                 learnQ();
                 traverseQ();
                 MARLData[0][i] = total_prize;
                 MARLData[1][i] = total_wt;
+                prizes[i] = total_prize;
+                distances[i] = total_wt;
 //                System.out.println("MARL " + total_prize);
 
-                // System.out.println("========== First greedy algorithm ==========");
+                // ========== First greedy algorithm ==========
                 traverseP();
                 greedy1Data[0][i] = total_prize;
                 greedy1Data[1][i] = total_wt;
 //                System.out.println("Greedy 1 " + total_prize);
 
-                // System.out.println("\n========== Second greedy algorithm ==========");
+                // ========== Second greedy algorithm ==========
                 traverseR();
                 greedy2Data[0][i] = total_prize;
                 greedy2Data[1][i] = total_wt;
+                }
+                printStats("MARL Algorithm Prize", prizes);
+                printStats("MARL Algorithm Distance", distances);
+                printStats("Gurobi ILP (Optimal)", ilpPrizes);
+                printStats("Gurobi ILP (Optimal)", ilpPrizes);
 //                System.out.println("Greedy 2 " + total_prize);
-            }
+            
             System.out.printf("\n============= For budget %d =============\n", b);
+            System.out.println("Gurobi ILP Algorithm (Optimal)");
+            System.out.println("Prizes: " + Arrays.toString(ILPData[0]));
+            System.out.println("Distances: " + Arrays.toString(ILPData[1]));
             System.out.println("Greedy Algorithm 1");
             System.out.println("Prizes: " + Arrays.toString(greedy1Data[0]));
             System.out.println("Distances: " + Arrays.toString(greedy1Data[1]));
@@ -122,9 +153,38 @@ public class TableData {
         String[] allCities = new String[] {
             "Albany,NY", "Annapolis,MD","Atlanta,GA","Augusta,ME","Austin,TX","BatonRouge,LA","Bismarck,ND","Boise,ID","Boston,MA","CarsonCity,NV","Charleston,WV","Cheyenne,WY","Columbia,SC","Columbus,OH","Concord,NH","Denver,CO","DesMoines,IA","Dover,DE","Frankfort,KY","Harrisburg,PA","Hartford,CT","Helena,MT","Indianapolis,IN","Jackson,MS","JeffersonCity,MO","Lansing,MI","Lincoln,NE","LittleRock,AR","Madison,WI","Montgomery,AL","Montpelier,VT","Nashville,TN","OklahomaCity,OK","Olympia,WA","Phoenix,AZ","Pierre,SD","Providence,RI","Raleigh,NC","Richmond,VA","Sacramento,CA","SaintPaul,MN","Salem,OR","SaltLakeCity,UT","SantaFe,NM","Springfield,IL","Tallahassee,FL","Topeka,KS","Trenton,NJ"
         };
-        begin = allCities[idx];
-        end = allCities[idx];
+        int startIdx = rand.nextInt(allCities.length);
+        int endIdx = rand.nextInt(allCities.length);
+        while (endIdx == startIdx) {
+            endIdx = rand.nextInt(allCities.length);
+        }
+
+        begin = allCities[startIdx];
+        end = allCities[endIdx];
         budget = b;
+    }
+    static void printStats(String label, double[] data) {
+        int n = data.length;
+        double sum = 0;
+        for (double d : data) sum += d;
+        double mean = sum / n;
+
+        double sqDiffSum = 0;
+        for (double d : data) sqDiffSum += Math.pow(d - mean, 2);
+        
+        // Sample Standard Deviation (Excel STDEV) 
+        double sd = Math.sqrt(sqDiffSum / (n - 1));
+
+        // 95% Confidence Interval (Excel CONFIDENCE.NORM equivalent) 
+        // Z-score for 95% is ~1.96
+        double confidenceLevel = 1.96 * (sd / Math.sqrt(n));
+
+        System.out.println("\n--- " + label + " ---");
+        System.out.printf("Average: %.2f\n", mean);
+        System.out.printf("Standard Deviation (SD): %.2f\n", sd);
+        System.out.printf("95%% Confidence Interval (+/-): %.2f\n", confidenceLevel);
+        System.out.println("Excel Data Points (Copy-Paste):");
+        for (double d : data) System.out.println(d);
     }
 
     /*
@@ -137,7 +197,7 @@ public class TableData {
     static void initList()
     {
         //(1)
-        File towns = new File("src/" + fileName);
+        File towns = new File("src/main/resources/" + fileName);
         arrCities = new LinkedList<>();
         ArrayList<String> nameList = new ArrayList<>();
 

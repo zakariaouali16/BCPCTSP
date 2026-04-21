@@ -10,11 +10,12 @@ import java.util.*;
 
 public class Exploration {
     //meta variable
+    
     static String fileName = "Capital_Cities.txt";
 
     //CHANGE CITY AND PRIZEGOAL
     static String begin = "albany,ny";
-    static String end = "jackson,ms";
+    static String end = "boston,ma";
     static double budget = 10000;
 
     //static variables to be tweaked by user
@@ -137,7 +138,7 @@ public class Exploration {
     static void initList()
     {
         //(1)
-        File towns = new File("src/" + fileName);
+        File towns = new File("src/main/resources/" + fileName);
         arrCities = new LinkedList<>();
         ArrayList<String> nameList = new ArrayList<>();
 

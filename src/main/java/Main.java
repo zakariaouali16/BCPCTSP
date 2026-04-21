@@ -8,9 +8,10 @@ import com.google.ortools.linearsolver.MPObjective;
 import com.google.ortools.linearsolver.MPSolver;
 import com.google.ortools.linearsolver.MPVariable;
 */
-public class main {
+public class Main {
     // meta variable
-    static String fileName = "Capital_Cities10.txt";
+    
+    static String fileName = "Capital_Cities.txt";
 
     // CHANGE CITY AND PRIZEGOAL
     static String begin = "";
@@ -20,14 +21,15 @@ public class main {
     private static double remainingBudget;
 
     // static variables to be tweaked by user
-    static final int TRIALS = 5000; // number of episodes (epi)
+    static final int TRIALS = 15000; // number of episodes (epi)
     static final int NUM_AGENTS = 5; // (leave as is or change if needed)
     static final double W = 1500.0; // constant value to update the reward table
-    static double alpha = 0.1; // learning rate
+    static double alpha = 0.1;// learning rate
     static double gamma = 0.3; // discount factor
     static final double delta = 1; // power for Q value
-    static final double beta = 2; // power for distance
+    static final double beta = 3; // power for distance
     static double q0 = 0.5; // coefficient for exploration and exploitation
+    
 
     // flags for graph (do not touch)
     static final int UNVISITED = 0;
@@ -182,9 +184,7 @@ public class main {
         System.out.println("\n========== Optimal ILP Algorithm ==========");
         initList(true);
         initGraph();
-        startTime = System.nanoTime();
-        /* traverseIlp(); */
-        endTime = System.nanoTime();
+        
         totalTime = (double) (endTime - startTime) / 1000000;
         System.out.println("Algorithm took " + totalTime + "ms to process.");
         System.out.printf("\nTotal distance: %6.2f miles", total_wt);
@@ -200,8 +200,14 @@ public class main {
         TraverseILP solver = new TraverseILP(sGraph, startCityIndex, endCityIndex, budget);
 
         // 2. Run it
-        if (solver.solve()) {
+        startTime = System.nanoTime();
+        boolean isSolved = solver.solve();
+        /* traverseIlp(); */
+        endTime = System.nanoTime();
+        if (isSolved) {
             // 3. Extract the clean data
+            totalTime = (double) (endTime - startTime) / 1000000;
+            System.out.println("Algorithm took " + totalTime + "ms to process.");
             System.out.println("Optimal Prize Found: " + solver.getTotalPrize());
             System.out.println("Total Distance: " + solver.getTotalDistance());
             System.out.println("Route Indices: " + solver.getBestRoute());
@@ -656,7 +662,7 @@ public class main {
 
     static void initList(boolean flag) {
         // (1)
-        File towns = new File("src/" + fileName);
+        File towns = new File("src/main/resources/" + fileName);
         arrCities = new LinkedList<>();
         nameList = new ArrayList<>();
 
@@ -799,7 +805,7 @@ public class main {
      */
     static void initList() {
         // (1)
-        File towns = new File("src/" + fileName);
+        File towns = new File("src/main/resources/" + fileName);
         arrCities = new LinkedList<>();
         nameList = new ArrayList<>();
 

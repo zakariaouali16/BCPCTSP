@@ -1,0 +1,122 @@
+Looking for files in: C:\Users\zouali1\OneDrive - csudh.edu\Documents\BCPCTSP\BCPCTSP
+Enter the start city: Enter the end city: Enter the budget in miles: Going from Albany,NY          to Annapolis,MD       was 290.64miles collecting $98    with a ratio of $0.3371816/miles
+Going from Annapolis,MD       to Atlanta,GA         was 567.21miles collecting $84    with a ratio of $0.1480944/miles
+Going from Atlanta,GA         to Augusta,ME         was 1065.49miles collecting $74    with a ratio of $0.0694517/miles
+Going from Augusta,ME         to Austin,TX          was 1799.36miles collecting $65    with a ratio of $0.0361239/miles
+Going from Austin,TX          to BatonRouge,LA      was 389.95miles collecting $50    with a ratio of $0.1282215/miles
+Going from BatonRouge,LA      to Bismarck,ND        was 1238.59miles collecting $43    with a ratio of $0.0347170/miles
+Going from Bismarck,ND        to Boston,MA          was 1481.80miles collecting $28    with a ratio of $0.0188959/miles
+Going from Boston,MA          to Albany,NY          was 138.40 miles
+Algorithm took 11.5468ms to process.
+
+Total distance: 6971.44 miles
+Collected Prize: $442
+Route: [0, 1, 2, 3, 4, 5, 6, 8, 10]
+Remaining Budget: 1028.56 miles
+
+========== Second greedy algorithm ==========
+Going from Albany,NY          to Annapolis,MD       was 290.64miles collecting $98    with a ratio of $0.3371816/miles
+Going from Annapolis,MD       to Atlanta,GA         was 567.21miles collecting $84    with a ratio of $0.1480944/miles
+Going from Atlanta,GA         to BatonRouge,LA      was 457.20miles collecting $50    with a ratio of $0.1093624/miles
+Going from BatonRouge,LA      to Austin,TX          was 389.95miles collecting $65    with a ratio of $0.1666879/miles
+Going from Austin,TX          to Augusta,ME         was 1799.36miles collecting $74    with a ratio of $0.0411257/miles
+Going from Augusta,ME         to Boston,MA          was 148.98miles collecting $28    with a ratio of $0.1879467/miles
+Going from Boston,MA          to Bismarck,ND        was 1481.80miles collecting $43    with a ratio of $0.0290187/miles
+Going from Bismarck,ND        to Albany,NY          was 1347.20 miles
+Algorithm took 10.25ms to process.
+
+Total distance: 6482.34 miles
+Collected Prize: $442
+Route: [0, 1, 2, 5, 4, 3, 8, 6, 10]
+Remaining Budget: 1517.66 miles
+
+========== BC-PC-TSP MARL algorithm ==========
+
+Cost =[[9999.99, 290.64, 840.35, 229.24, 1571.30, 1275.43, 1347.20, 2112.77, 138.40, 2379.59],
+[290.64, 9999.99, 567.21, 504.07, 1342.01, 1017.02, 1333.55, 2061.38, 367.04, 2293.68],
+[840.35, 567.21, 9999.99, 1065.49, 815.75, 457.20, 1242.23, 1828.27, 933.68, 1983.93],
+[229.24, 504.07, 1065.49, 9999.99, 1799.36, 1504.10, 1496.46, 2272.57, 148.98, 2555.68],
+[1571.30, 1342.01, 815.75, 1799.36, 9999.99, 389.95, 1152.20, 1365.52, 1689.51, 1385.43],
+[1275.43, 1017.02, 457.20, 1504.10, 389.95, 9999.99, 1238.59, 1638.34, 1379.66, 1716.64],
+[1347.20, 1333.55, 1242.23, 1496.46, 1152.20, 1238.59, 9999.99, 779.08, 1481.80, 1089.11],
+[2112.77, 2061.38, 1828.27, 2272.57, 1365.52, 1638.34, 779.08, 9999.99, 2249.55, 358.10],
+[138.40, 367.04, 933.68, 148.98, 1689.51, 1379.66, 1481.80, 2249.55, 9999.99, 2517.86],
+[2379.59, 2293.68, 1983.93, 2555.68, 1385.43, 1716.64, 1089.11, 358.10, 2517.86, 9999.99]];
+p=[0, 98, 84, 74, 65, 50, 43, 37, 28, 19];
+Going from Albany,NY          to Annapolis,MD       was 290.64miles collecting $98    with a ratio of $0.3371816/miles
+Going from Annapolis,MD       to Atlanta,GA         was 567.21miles collecting $84    with a ratio of $0.1480944/miles
+Going from Atlanta,GA         to BatonRouge,LA      was 457.20miles collecting $50    with a ratio of $0.1093624/miles
+Going from BatonRouge,LA      to Austin,TX          was 389.95miles collecting $65    with a ratio of $0.1666879/miles
+Going from Austin,TX          to Bismarck,ND        was 1152.20miles collecting $43    with a ratio of $0.0373200/miles
+Going from Bismarck,ND        to Boise,ID           was 779.08miles collecting $37    with a ratio of $0.0474917/miles
+Going from Boise,ID           to CarsonCity,NV      was 358.10miles collecting $19    with a ratio of $0.0530571/miles
+Going from CarsonCity,NV      to Augusta,ME         was 2555.68miles collecting $74    with a ratio of $0.0289551/miles
+Going from Augusta,ME         to Boston,MA          was 148.98miles collecting $28    with a ratio of $0.1879467/miles
+Going from Boston,MA          to Albany,NY          was 138.40miles
+Algorithm took 334.7784ms to process.
+
+Total distance: 6837.44 Miles
+Collected Prize: $498
+Route: Albany,NY(0), Annapolis,MD(1), Atlanta,GA(2), BatonRouge,LA(5), Austin,TX(4), Bismarck,ND(6), Boise,ID(7), CarsonCity,NV(9), Augusta,ME(3), Boston,MA(8), Albany,NY(0)
+Remaining Budget: 1162.56 Miles
+
+Value of P^m: 498
+R^m Route: Albany,NY Boston,MA(8), Augusta,ME(3), Annapolis,MD(1), Atlanta,GA(2), BatonRouge,LA(5), Austin,TX(4), Bismarck,ND(6), Boise,ID(7), CarsonCity,NV(9), Albany,NY(0)
+Found on episode: 0
+
+========== Optimal ILP Algorithm ==========
+Algorithm took 1.0E-4ms to process.
+
+Total distance: 6837.44 miles
+Remaining distance: 1162.56km
+Collected Prize: $698
+Route: [0, 1, 2, 5, 4, 6, 7, 9, 3, 8, 10]
+Remaining Budget: 1162.56 miles
+presolving:
+(round 1, fast)       20 del vars, 10 del conss, 0 add conss, 17 chg bounds, 1 chg sides, 0 chg coeffs, 0 upgd conss, 0 impls, 18 clqs
+(round 2, fast)       21 del vars, 10 del conss, 0 add conss, 17 chg bounds, 9 chg sides, 8 chg coeffs, 0 upgd conss, 0 impls, 18 clqs
+(round 3, exhaustive) 21 del vars, 10 del conss, 0 add conss, 17 chg bounds, 9 chg sides, 8 chg coeffs, 26 upgd conss, 0 impls, 18 clqs
+   (0.0s) probing cycle finished: starting next cycle
+   Deactivated symmetry handling methods, since SCIP was built without symmetry detector (SYM=none).
+presolving (4 rounds: 4 fast, 2 medium, 2 exhaustive):
+ 21 deleted vars, 10 deleted constraints, 0 added constraints, 17 tightened bounds, 0 added holes, 9 changed sides, 8 changed coefficients
+ 120 implications, 18 cliques
+presolved problem has 89 variables (81 bin, 0 int, 0 impl, 8 cont) and 83 constraints
+      8 constraints of type <varbound>
+     18 constraints of type <setppc>
+     57 constraints of type <linear>
+transformed objective value is always integral (scale: 1)
+Presolving Time: 0.00
+
+ time | node  | left  |LP iter|LP it/n|mem/heur|mdpt |vars |cons |rows |cuts |sepa|confs|strbr|  dualbound   | primalbound  |  gap   | compl.
+p 0.0s|     1 |     0 |     0 |     - |   locks|   0 |  89 |  84 |  83 |   0 |  0 |   0 |   0 | 5.980000e+02 | 1.190000e+02 | 402.52%| unknown
+p 0.0s|     1 |     0 |     0 |     - | vbounds|   0 |  89 |  84 |  83 |   0 |  0 |   0 |   0 | 5.980000e+02 | 2.170000e+02 | 175.58%| unknown
+p 0.0s|     1 |     0 |     0 |     - | vbounds|   0 |  89 |  84 |  83 |   0 |  0 |   0 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+  0.0s|     1 |     0 |    16 |     - |  1643k |   0 |  89 |  84 |  83 |   0 |  0 |   0 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+  0.0s|     1 |     0 |    21 |     - |  1705k |   0 |  89 |  84 |  90 |   7 |  1 |   0 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+  0.0s|     1 |     0 |    27 |     - |  1743k |   0 |  89 |  84 |  94 |  11 |  2 |   0 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+  0.0s|     1 |     0 |    29 |     - |  1796k |   0 |  89 |  84 |  96 |  13 |  4 |   0 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+  0.0s|     1 |     0 |    33 |     - |  1806k |   0 |  89 |  84 |  99 |  16 |  5 |   0 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+  0.0s|     1 |     0 |    36 |     - |  1842k |   0 |  89 |  84 | 100 |  17 |  6 |   0 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+  0.0s|     1 |     0 |    44 |     - |  1915k |   0 |  89 |  85 | 103 |  20 |  7 |   1 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+  0.0s|     1 |     0 |    48 |     - |  1997k |   0 |  89 |  86 | 105 |  22 |  8 |   2 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+  0.0s|     1 |     0 |    52 |     - |  2052k |   0 |  89 |  86 | 108 |  25 | 10 |   2 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+  0.0s|     1 |     0 |    56 |     - |  2100k |   0 |  89 |  87 | 110 |  27 | 11 |   3 |   0 | 5.980000e+02 | 5.700000e+02 |   4.91%| unknown
+d 0.0s|     1 |     0 |   111 |     - |farkasdi|   0 |  89 |  87 | 110 |   0 | 11 |   3 |   0 | 5.980000e+02 | 5.980000e+02 |   0.00%| unknown
+  0.0s|     1 |     0 |   111 |     - |  2138k |   0 |  89 |  87 | 110 |  27 | 11 |   3 |   0 | 5.980000e+02 | 5.980000e+02 |   0.00%| unknown
+
+SCIP Status        : problem is solved [optimal solution found]
+Solving Time (sec) : 0.00
+Solving Nodes      : 1
+Primal Bound       : +5.98000000000000e+02 (4 solutions)
+Dual Bound         : +5.98000000000000e+02
+Gap                : 0.00 %
+Optimal Prize Found: 598.0
+Total Distance: 6939.192027969498
+Route Indices: [0, 4, 5, 1, 8, 3, 2, 6, 7, 9]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.284 s
+[INFO] Finished at: 2026-04-08T01:44:35-07:00
+[INFO] ------------------------------------------------------------------------
