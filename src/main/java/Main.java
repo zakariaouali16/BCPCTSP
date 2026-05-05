@@ -1,17 +1,16 @@
 import java.io.*;
 import java.util.*;
-import com.gurobi.gurobi.*;
+
 //imports for google OR-tools
 /*import com.google.ortools.Loader;
 import com.google.ortools.linearsolver.MPConstraint;
 import com.google.ortools.linearsolver.MPObjective;
 import com.google.ortools.linearsolver.MPSolver;
-import com.google.ortools.linearsolver.MPVariable;
-*/
-public class Main {
+import com.google.ortools.linearsolver.MPVariable;*/
+
+public class main {
     // meta variable
-    
-    static String fileName = "Capital_Cities.txt";
+    static String fileName = "Capital_Cities10.txt";
 
     // CHANGE CITY AND PRIZEGOAL
     static String begin = "";
@@ -21,15 +20,14 @@ public class Main {
     private static double remainingBudget;
 
     // static variables to be tweaked by user
-    static final int TRIALS = 15000; // number of episodes (epi)
-    static final int NUM_AGENTS = 5; // (leave as is or change if needed)
-    static final double W = 1500.0; // constant value to update the reward table
-    static double alpha = 0.1;// learning rate
-    static double gamma = 0.3; // discount factor
+    static final int TRIALS = 4000;
+    static final int NUM_AGENTS = 5;
+    static final double W = 1000.0; // constant value to update the reward table
+    static double alpha = 0.125; // .125 learning rate
+    static double gamma = 0.35; // .35 discount factor
     static final double delta = 1; // power for Q value
-    static final double beta = 3; // power for distance
-    static double q0 = 0.5; // coefficient for exploration and exploitation
-    
+    static final double beta = 2; // power for distance
+    static double q0 = 0.8; // coefficient for exploration and exploitation
 
     // flags for graph (do not touch)
     static final int UNVISITED = 0;
@@ -69,62 +67,57 @@ public class Main {
         // variables for time tracking
         long startTime, endTime;
         double totalTime;
-        System.out.println("Looking for files in: " + System.getProperty("user.dir"));
+
         askForUserInputs();
 
         String[] cityList = { "Albany,NY", "Annapolis,MD", "Atlanta,GA", "Augusta,ME", "Austin,TX", "BatonRouge,LA",
-                "Bismarck,ND", "Boise,ID", "Boston,MA", "CarsonCity,NV"/*
-                                                                        * , "Charleston,WV", "Cheyenne,WY",
-                                                                        * "Columbia,SC",
-                                                                        * "Columbus,OH", "Concord,NH", "Denver,CO",
-                                                                        * "DesMoines,IA", "Dover,DE", "Frankfort,KY",
-                                                                        * "Harrisburg,PA"
-                                                                        */ };
+                "Bismarck,ND", "Boise,ID", "Boston,MA", "CarsonCity,NV"/* , "Charleston,WV", "Cheyenne,WY", "Columbia,SC",
+    "Columbus,OH", "Concord,NH", "Denver,CO", "DesMoines,IA", "Dover,DE", "Frankfort,KY", "Harrisburg,PA"*/ };
 
-        // System.out.println("========== First greedy algorithm ==========");
-        /*
-         * for (int j = 0; j < 4; j++) {
-         * for (int i = 0; i < 10; i++) {
-         * begin = cityList[i];
-         * end = cityList[i];
-         * switch (j) {
-         * case 0:
-         * budget = 2000;
-         * break;
-         * case 1:
-         * budget = 4000;
-         * break;
-         * case 2:
-         * budget = 6000;
-         * break;
-         * case 3:
-         * budget = 8000;
-         * break;
-         * }
-         * // budget =
-         * initList();
-         * initGraph();
-         * initStatics();
-         * startTime = System.nanoTime();
-         * learnQ();
-         * traverseQ();
-         * endTime = System.nanoTime();
-         * totalTime = (double) (endTime - startTime) / 1000000;
-         * 
-         * gaOnePrize+=(total_prize - (arrCities.get(0).pop * 2)) +"\n";
-         * gaOneDist+= (budget - remainingBudget) + "\n";
-         * }
-         * gaOnePrize+="\n";
-         * gaOneDist+="\n";
-         * }
-         * System.out.println("prizze:");
-         * System.out.println(gaOnePrize);
-         * System.out.println("Dists:");
-         * System.out.println(gaOneDist);
-         */
+        
+
+        //System.out.println("========== First greedy algorithm ==========");
+       /*for (int j = 0; j < 4; j++) {
+            for (int i = 0; i < 10; i++) {
+                begin = cityList[i];
+                end = cityList[i];
+                switch (j) {
+                    case 0:
+                        budget = 2000;
+                        break;
+                    case 1:
+                        budget = 4000;
+                        break;
+                    case 2:
+                        budget = 6000;
+                        break;
+                    case 3:
+                        budget = 8000;
+                        break;
+                }
+                // budget =
+                initList();
+                initGraph();
+                initStatics();
+                startTime = System.nanoTime();
+                learnQ();
+                traverseQ();
+                endTime = System.nanoTime();
+                totalTime = (double) (endTime - startTime) / 1000000;
+
+                gaOnePrize+=(total_prize - (arrCities.get(0).pop * 2)) +"\n";
+                gaOneDist+= (budget - remainingBudget) + "\n";
+            }
+            gaOnePrize+="\n";
+            gaOneDist+="\n";
+        }
+        System.out.println("prizze:");
+        System.out.println(gaOnePrize);
+        System.out.println("Dists:");
+        System.out.println(gaOneDist);*/
         initList();
         initGraph();
-
+        
         startTime = System.nanoTime();
         traverseP();
         endTime = System.nanoTime();
@@ -157,7 +150,7 @@ public class Main {
         startTime = System.nanoTime();
         printIlpArrays();
         learnQ();
-        // System.out.println(prizeCol.toString());
+        //System.out.println(prizeCol.toString());
         traverseQ();
         endTime = System.nanoTime();
 
@@ -180,39 +173,21 @@ public class Main {
          * System.out.println("Route: "+bestQRoute);
          * System.out.println("Found on episode: "+ bestQRouteIter);
          */
-
-        System.out.println("\n========== Optimal ILP Algorithm ==========");
-        initList(true);
-        initGraph();
-        
-        totalTime = (double) (endTime - startTime) / 1000000;
-        System.out.println("Algorithm took " + totalTime + "ms to process.");
-        System.out.printf("\nTotal distance: %6.2f miles", total_wt);
-        System.out.printf("\nRemaining distance: %6.2fkm", budget - total_wt);
-        System.out.printf("\nCollected Prize: $%d", total_prize);
-        System.out.printf("\nRoute: %s\n", route.toString());
-        System.out.printf("Remaining Budget: %.2f miles\n", remainingBudget);
-        // Inside your main method or wherever you trigger the ILP
-        int startCityIndex = 0; // Replace with your actual start index
-        int endCityIndex = sGraph.getLastNode();
-
-        // 1. Instantiate the solver
-        TraverseILP solver = new TraverseILP(sGraph, startCityIndex, endCityIndex, budget);
-
-        // 2. Run it
-        startTime = System.nanoTime();
-        boolean isSolved = solver.solve();
-        /* traverseIlp(); */
-        endTime = System.nanoTime();
-        if (isSolved) {
-            // 3. Extract the clean data
-            totalTime = (double) (endTime - startTime) / 1000000;
-            System.out.println("Algorithm took " + totalTime + "ms to process.");
-            System.out.println("Optimal Prize Found: " + solver.getTotalPrize());
-            System.out.println("Total Distance: " + solver.getTotalDistance());
-            System.out.println("Route Indices: " + solver.getBestRoute());
-        }
-
+        /*
+         * System.out.println("\n========== Optimal ILP Algorithm ==========");
+         * initList(true);
+         * initGraph();
+         * startTime = System.nanoTime();
+         * //traverseIlp();
+         * endTime = System.nanoTime();
+         * totalTime = (double) (endTime - startTime) / 1000000;
+         * System.out.println("Algorithm took " + totalTime + "ms to process.");
+         * //System.out.printf("\nTotal distance: %6.2f miles", total_wt);
+         * // System.out.printf("\nRemaining distance: %6.2fkm", budget - total_wt);
+         * //System.out.printf("\nCollected Prize: $%d", total_prize);
+         * //System.out.printf("\nRoute: %s\n", route.toString());
+         * //System.out.printf("Remaining Budget: %.2f miles\n", remainingBudget);
+         */
     }
 
     private static String makeRouteString() {
@@ -520,149 +495,9 @@ public class Main {
      * modified for ILP solution
      * last node
      */
-    static void traverseGurobiIlp() {
-        try {
-            int n = arrCities.size();
-
-            // 1. Initialize WLS Environment
-            GRBEnv env = new GRBEnv(true);
-            env.set("WLSACCESSID", "356d318b-49e5-488c-adf2-e5e2d4bd1179");
-            env.set("WLSSECRET", "2be2af93-98ae-4d46-b9f8-1a693ac175f6");
-            env.set("LICENSEID", "2798939");
-            env.start();
-
-            // 2. Create the model
-            GRBModel model = new GRBModel(env);
-            model.set(GRB.StringAttr.ModelName, "Budget_PCTSP");
-
-            // 3. Define Variables
-            // x[i][j] = 1 if the path goes from city i to city j
-            GRBVar[][] x = new GRBVar[n][n];
-            for (int i = 0; i < n; i++) {
-                for (int j = 0; j < n; j++) {
-                    if (i != j) {
-                        x[i][j] = model.addVar(0.0, 1.0, 0.0, GRB.BINARY, "x_" + i + "_" + j);
-                    } else {
-                        // Cannot travel from a node to itself
-                        x[i][j] = model.addVar(0.0, 0.0, 0.0, GRB.BINARY, "x_" + i + "_" + j);
-                    }
-                }
-            }
-
-            // u[i] for MTZ subtour elimination
-            GRBVar[] u = new GRBVar[n];
-            for (int i = 0; i < n; i++) {
-                u[i] = model.addVar(0.0, n, 0.0, GRB.CONTINUOUS, "u_" + i);
-            }
-
-            // 4. Objective: Maximize collected prizes
-            GRBLinExpr objective = new GRBLinExpr();
-            for (int i = 1; i < n; i++) { // Skip starting node prize if needed
-                for (int j = 0; j < n; j++) {
-                    if (i != j) {
-                        objective.addTerm(arrCities.get(i).pop, x[i][j]);
-                    }
-                }
-            }
-            model.setObjective(objective, GRB.MAXIMIZE);
-
-            // 5. Constraints
-
-            // Constraint A: Start at Node 0, End at Last Node
-            GRBLinExpr startOut = new GRBLinExpr();
-            GRBLinExpr endIn = new GRBLinExpr();
-            for (int j = 1; j < n; j++) {
-                startOut.addTerm(1.0, x[0][j]);
-                endIn.addTerm(1.0, x[j][n - 1]);
-            }
-            model.addConstr(startOut, GRB.EQUAL, 1.0, "StartNode");
-            model.addConstr(endIn, GRB.EQUAL, 1.0, "EndNode");
-
-            // Constraint B: Flow Conservation and Visit At Most Once (Intermediate Nodes)
-            for (int k = 1; k < n - 1; k++) {
-                GRBLinExpr flowIn = new GRBLinExpr();
-                GRBLinExpr flowOut = new GRBLinExpr();
-
-                for (int i = 0; i < n; i++) {
-                    if (i != k)
-                        flowIn.addTerm(1.0, x[i][k]);
-                }
-                for (int j = 0; j < n; j++) {
-                    if (j != k)
-                        flowOut.addTerm(1.0, x[k][j]);
-                }
-
-                model.addConstr(flowIn, GRB.EQUAL, flowOut, "FlowMatch_" + k);
-                model.addConstr(flowIn, GRB.LESS_EQUAL, 1.0, "VisitOnce_" + k);
-            }
-
-            // Constraint C: Budget Constraint
-            GRBLinExpr totalCost = new GRBLinExpr();
-            for (int i = 0; i < n; i++) {
-                for (int j = 0; j < n; j++) {
-                    if (i != j) {
-                        double dist = CityNode.getDistance(arrCities.get(i), arrCities.get(j));
-                        totalCost.addTerm(dist, x[i][j]);
-                    }
-                }
-            }
-            model.addConstr(totalCost, GRB.LESS_EQUAL, budget, "Budget");
-
-            // Constraint D: MTZ Subtour Elimination
-            for (int i = 1; i < n; i++) {
-                for (int j = 1; j < n; j++) {
-                    if (i != j) {
-                        GRBLinExpr mtzLhs = new GRBLinExpr();
-                        mtzLhs.addTerm(1.0, u[i]);
-                        mtzLhs.addTerm(-1.0, u[j]);
-                        mtzLhs.addConstant(1.0);
-
-                        GRBLinExpr mtzRhs = new GRBLinExpr();
-                        mtzRhs.addConstant(n - 1);
-                        mtzRhs.addTerm(-(n - 1), x[i][j]);
-
-                        model.addConstr(mtzLhs, GRB.LESS_EQUAL, mtzRhs, "MTZ_" + i + "_" + j);
-                    }
-                }
-            }
-
-            // 6. Optimize the model
-            model.optimize();
-
-            // 7. Extract the solution
-            if (model.get(GRB.IntAttr.Status) == GRB.OPTIMAL) {
-                System.out.println("\n========== Gurobi ILP Output ==========");
-                System.out.println("Max Prize Collected: $" + model.get(GRB.DoubleAttr.ObjVal));
-
-                double actualDistance = 0.0;
-                for (int i = 0; i < n; i++) {
-                    for (int j = 0; j < n; j++) {
-                        if (i != j && x[i][j].get(GRB.DoubleAttr.X) > 0.5) { // Binary variable check
-                            double d = CityNode.getDistance(arrCities.get(i), arrCities.get(j));
-                            actualDistance += d;
-                            System.out.printf("Travel: %-18s -> %-18s (%.2f miles)\n",
-                                    arrCities.get(i).name, arrCities.get(j).name, d);
-                        }
-                    }
-                }
-                System.out.println("Total Distance: " + actualDistance + " miles");
-                System.out.println("Remaining Budget: " + (budget - actualDistance) + " miles");
-            } else {
-                System.out.println("No optimal solution found. Budget may be too tight.");
-            }
-
-            // Clean up
-            model.dispose();
-            env.dispose();
-
-        } catch (GRBException e) {
-            System.out.println("Error code: " + e.getErrorCode() + ". " + e.getMessage());
-        }
-    }
-
     static void initList(boolean flag) {
         // (1)
-        File towns = new File("src/main/resources/" + fileName);
+        File towns = new File("src/" + fileName);
         arrCities = new LinkedList<>();
         nameList = new ArrayList<>();
 
@@ -784,13 +619,13 @@ public class Main {
     static void askForUserInputs() {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Enter the start city: ");
-        // begin = scanner.nextLine();
+        //begin = scanner.nextLine();
         begin = "Albany,NY";
         System.out.print("Enter the end city: ");
-        // end = scanner.nextLine();
+        //end = scanner.nextLine();
         end = "Albany,NY";
         System.out.print("Enter the budget in miles: ");
-        // budget = scanner.nextInt();
+        //budget = scanner.nextInt();
         budget = 8000;
     }
 
@@ -805,7 +640,7 @@ public class Main {
      */
     static void initList() {
         // (1)
-        File towns = new File("src/main/resources/" + fileName);
+        File towns = new File("src/" + fileName);
         arrCities = new LinkedList<>();
         nameList = new ArrayList<>();
 
@@ -975,7 +810,7 @@ public class Main {
                         }
                         double maxQ = maxQ(aj, nextState);
                         Q[aj.curState][nextState] = (1 - alpha) * Q[aj.curState][nextState] + alpha *
-                                gamma * maxQ;
+                        gamma * maxQ;
                         aj.indexPath.add(nextState);
                         aj.total_wt += aj.shortestPath(aj.curState, nextState);
                         // if(nextState!=0 && nextState!=aj.getLastNode()){
@@ -994,15 +829,16 @@ public class Main {
             ArrayList<Integer> path = jStar.indexPath;
             jStar.resetAgentMarks();
 
+            
             for (int v = 0; v < path.size() - 1; v++) {
-                double q = Q[path.get(v)][path.get(v + 1)];
-                double maxQ = maxQ(jStar, path.get(v + 1));
-                R[path.get(v)][path.get(v + 1)] += (W / jStar.total_prize);
-                Q[path.get(v)][path.get(v + 1)] = (1 - alpha) * q
-                        + alpha * (R[path.get(v)][path.get(v + 1)] + gamma * maxQ);
+            double q = Q[path.get(v)][path.get(v + 1)];
+            double maxQ = maxQ(jStar, path.get(v + 1));
+            R[path.get(v)][path.get(v + 1)] += (W / jStar.total_prize);
+            Q[path.get(v)][path.get(v + 1)] = (1 - alpha) * q
+            + alpha * (R[path.get(v)][path.get(v + 1)] + gamma * maxQ);
             }
-
-            prizeCol.append("" + i + "\t" + (aList[mostFitIndex].total_prize - 100) + "\n");
+             
+            prizeCol.append(""+i+"\t"+(aList[mostFitIndex].total_prize-100)+"\n");
             if (aList[mostFitIndex].total_prize > prizeMax) {
                 prizeMax = aList[mostFitIndex].total_prize;
                 routeMax = path;

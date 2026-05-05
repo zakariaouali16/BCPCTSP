@@ -51,8 +51,6 @@ class Graph {
     public void Init(int n) {
         Mark = new int[n];
         matrix = new double[n][n];
-        shortestMatrix = new double[n][n]; // Add this line
-        shortestNext = new int[n][n];      // Add this line
         numEdge = 0;
         nodeName = new String[n];
         prize = new int[n];
