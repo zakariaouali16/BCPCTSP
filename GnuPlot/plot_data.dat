@@ -1,0 +1,5 @@
+Algorithm Prize_Avg Prize_CI Distance_Avg Distance_CI
+Gurobi 2535.50 2.71 9985.94 8.36
+Greedy1 984.05 7.51 9956.47 35.13
+MARL 2148.60 23.16 9879.39 39.45
+Greedy2 2003.15 67.64 9820.48 122.24
