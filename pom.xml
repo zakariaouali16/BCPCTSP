@@ -1,51 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+ 
     <modelVersion>4.0.0</modelVersion>
-
-    <groupId>edu.pmarl</groupId>
-    <artifactId>pmarl-comparison</artifactId>
-    <version>1.0-SNAPSHOT</version>
-    <name>PMARL Comparison</name>
-
+ 
+    <groupId>pmarl</groupId>
+    <artifactId>pmarl</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+ 
+    <name>pmarl</name>
+    <description>Prize-collecting MARL with Gurobi ILP baseline.</description>
+ 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>17</maven.compiler.release>
+ 
+        <!-- Pin the Gurobi version. Match this to the version your WLS
+             license entitles you to (the WLS access id / secret are versioned
+             on Gurobi's side). -->
+        <gurobi.version>13.0.1</gurobi.version>
+ 
+        <main.class>pmarl.Main</main.class>
     </properties>
+ 
     <dependencies>
+        <!--
+            Official Gurobi Java package (published to Maven Central since 10.0.3).
+            The default ("full") jar bundles the native solver libraries for
+            linux64, armlinux64, win64 and macos_universal2, so no separate
+            Gurobi install or LD_LIBRARY_PATH/PATH setup is required.
+ 
+            If you already have a Gurobi install on the machine and want to
+            reuse its native libs, swap in the smaller "core" classifier:
+                <classifier>core</classifier>
+            and ensure GUROBI_HOME/LD_LIBRARY_PATH point to that install.
+        -->
         <dependency>
-            <groupId>com.google.ortools</groupId>
-            <artifactId>ortools-java</artifactId>
-            <version>9.15.6755</version>
+            <groupId>com.gurobi</groupId>
+            <artifactId>gurobi</artifactId>
+            <version>${gurobi.version}</version>
         </dependency>
     </dependencies>
+ 
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.15.0</version>
+                <version>3.13.0</version>
             </plugin>
-
+ 
+            <!-- `mvn exec:java` runs Main directly inside the Maven JVM. -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>3.6.3</version>
-                <configuration>
-                    <mainClass>pmarl.Main</mainClass>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>pmarl.Main</mainClass>
-                        </manifest>
-                    </archive>
+                    <mainClass>${main.class}</mainClass>
                 </configuration>
             </plugin>
         </plugins>
