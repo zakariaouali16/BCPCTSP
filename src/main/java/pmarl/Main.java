@@ -3,11 +3,12 @@ package pmarl;
 import java.io.*;
 import java.util.*;
 
-import com.google.ortools.Loader;
-import com.google.ortools.linearsolver.MPConstraint;
-import com.google.ortools.linearsolver.MPObjective;
-import com.google.ortools.linearsolver.MPSolver;
-import com.google.ortools.linearsolver.MPVariable;
+import com.gurobi.gurobi.GRB;
+import com.gurobi.gurobi.GRBEnv;
+import com.gurobi.gurobi.GRBException;
+import com.gurobi.gurobi.GRBLinExpr;
+import com.gurobi.gurobi.GRBModel;
+import com.gurobi.gurobi.GRBVar;
 
 /**
  * Main.java - 20-run experiment using usa_towns_with_rewards1000.csv.
@@ -49,19 +50,43 @@ public class Main {
     static final double beta = 2.0;
     static double q0 = 0.8;
 
-    // OR-Tools ILP baseline settings.
+    // Gurobi ILP baseline settings.
     // ILP_CANDIDATE_LIMIT controls how many feasible intermediate towns the
-    // OR-Tools model considers.
+    // Gurobi model considers.
     //   Integer.MAX_VALUE (default) = ALL feasible towns -> globally optimal,
     //                                 but may be very slow for large feasible sets.
     //   A positive integer N         = top-N by prize/ratio (fast but approximate).
     //   0                            = skip ILP entirely.
     static int ILP_CANDIDATE_LIMIT = Integer.MAX_VALUE;
 
-    // CBC can solve moderate candidate sets, but a 1000-town complete graph can
-    // create a very large MIP. This cap is used only when candidateLimit is left
-    // unlimited; pass an explicit ilpCandidateLimit to raise/lower it.
-    static final int DEFAULT_ORTOOLS_CANDIDATE_CAP = 80;
+    // Gurobi can comfortably handle moderately large MIPs, but a 1000-town
+    // complete graph still produces a very large model. This cap is used only
+    // when candidateLimit is left unlimited; pass an explicit ilpCandidateLimit
+    // to raise/lower it.
+    static final int DEFAULT_GUROBI_CANDIDATE_CAP = 80;
+
+    // Gurobi WLS license credentials. The environment is created lazily on the
+    // first ILP run and reused across all subsequent runs to avoid the cost of
+    // repeatedly re-authenticating with the WLS server.
+    static final String GUROBI_WLS_ACCESS_ID = "356d318b-49e5-488c-adf2-e5e2d4bd1179";
+    static final String GUROBI_WLS_SECRET    = "2be2af93-98ae-4d46-b9f8-1a693ac175f6";
+    static final String GUROBI_LICENSE_ID    = "2798939";
+    static final double GUROBI_TIME_LIMIT_S  = 120.0;
+    static GRBEnv gurobiEnv = null;
+
+    static GRBEnv getGurobiEnv() throws GRBException {
+        if (gurobiEnv == null) {
+            GRBEnv env = new GRBEnv(true);
+            env.set("WLSACCESSID", GUROBI_WLS_ACCESS_ID);
+            env.set("WLSSECRET",   GUROBI_WLS_SECRET);
+            env.set("LICENSEID",   GUROBI_LICENSE_ID);
+            // Suppress per-run solver chatter; the captureResult note is enough.
+            env.set(GRB.IntParam.OutputFlag, 0);
+            env.start();
+            gurobiEnv = env;
+        }
+        return gurobiEnv;
+    }
 
     // Graph flags
     static final int UNVISITED = 0;
@@ -772,13 +797,13 @@ public class Main {
         total_prize = prizeForRoute(route);
         remainingBudget = budget - total_wt;
 
-        if (candidateLimit == Integer.MAX_VALUE && candidates.size() > DEFAULT_ORTOOLS_CANDIDATE_CAP) {
+        if (candidateLimit == Integer.MAX_VALUE && candidates.size() > DEFAULT_GUROBI_CANDIDATE_CAP) {
             System.out.printf(
-                "  [OR-Tools ILP] %d feasible towns is a large MIP.\n" +
-                "                 Trimming to top-%d by prize/ratio. Pass an explicit\n" +
-                "                 ilpCandidateLimit to control this cap.\n",
-                candidates.size(), DEFAULT_ORTOOLS_CANDIDATE_CAP);
-            candidates = trimCandidates(candidates, DEFAULT_ORTOOLS_CANDIDATE_CAP);
+                "  [Gurobi ILP] %d feasible towns is a large MIP.\n" +
+                "               Trimming to top-%d by prize/ratio. Pass an explicit\n" +
+                "               ilpCandidateLimit to control this cap.\n",
+                candidates.size(), DEFAULT_GUROBI_CANDIDATE_CAP);
+            candidates = trimCandidates(candidates, DEFAULT_GUROBI_CANDIDATE_CAP);
         }
 
         int k = candidates.size();
@@ -786,15 +811,8 @@ public class Main {
             String note = (candidateLimit == 0)
                     ? "candidate limit is 0"
                     : "no feasible intermediate candidates";
-            return captureResult("OR-Tools ILP", 0, note);
+            return captureResult("Gurobi ILP", 0, note);
         }
-
-        Loader.loadNativeLibraries();
-        MPSolver solver = MPSolver.createSolver("CBC_MIXED_INTEGER_PROGRAMMING");
-        if (solver == null) {
-            throw new IllegalStateException("Could not create OR-Tools CBC MIP solver.");
-        }
-        solver.setTimeLimit(120_000L);
 
         int m = k + 2;
         int start = 0;
@@ -806,106 +824,138 @@ public class Main {
         }
         localToGraph[finish] = finishNode;
 
-        MPVariable[][] x = new MPVariable[m][m];
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < m; j++) {
-                if (i != j && i != finish && j != start) {
-                    x[i][j] = solver.makeBoolVar("x_" + i + "_" + j);
-                }
-            }
-        }
+        GRBModel model = null;
+        try {
+            GRBEnv env = getGurobiEnv();
+            model = new GRBModel(env);
+            model.set(GRB.DoubleParam.TimeLimit, GUROBI_TIME_LIMIT_S);
 
-        MPVariable[] y = new MPVariable[m];
-        y[start] = solver.makeIntVar(1.0, 1.0, "y_start");
-        y[finish] = solver.makeIntVar(1.0, 1.0, "y_finish");
-        for (int i = 1; i < finish; i++) {
-            y[i] = solver.makeBoolVar("y_" + i);
-        }
-
-        // MTZ order variables remove subtours and force a single start-to-finish path.
-        MPVariable[] order = new MPVariable[m];
-        order[start] = solver.makeNumVar(0.0, 0.0, "u_start");
-        for (int i = 1; i < m; i++) {
-            order[i] = solver.makeNumVar(1.0, m - 1, "u_" + i);
-        }
-
-        // Start has exactly one outgoing arc; finish has exactly one incoming arc.
-        MPConstraint startOut = solver.makeConstraint(1.0, 1.0, "start_out");
-        for (int j = 1; j < m; j++) {
-            if (x[start][j] != null) startOut.setCoefficient(x[start][j], 1.0);
-        }
-
-        MPConstraint finishIn = solver.makeConstraint(1.0, 1.0, "finish_in");
-        for (int i = 0; i < finish; i++) {
-            if (x[i][finish] != null) finishIn.setCoefficient(x[i][finish], 1.0);
-        }
-
-        // Each selected intermediate town has one incoming and one outgoing arc.
-        for (int v = 1; v < finish; v++) {
-            MPConstraint in = solver.makeConstraint(0.0, 0.0, "flow_in_" + v);
+            // x[i][j] = 1 if arc (i,j) is used. Skip i==j, arcs into start, arcs out of finish.
+            GRBVar[][] x = new GRBVar[m][m];
             for (int i = 0; i < m; i++) {
-                if (x[i][v] != null) in.setCoefficient(x[i][v], 1.0);
-            }
-            in.setCoefficient(y[v], -1.0);
-
-            MPConstraint out = solver.makeConstraint(0.0, 0.0, "flow_out_" + v);
-            for (int j = 0; j < m; j++) {
-                if (x[v][j] != null) out.setCoefficient(x[v][j], 1.0);
-            }
-            out.setCoefficient(y[v], -1.0);
-        }
-
-        MPConstraint budgetConstraint = solver.makeConstraint(Double.NEGATIVE_INFINITY, budget, "budget");
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < m; j++) {
-                if (x[i][j] != null) {
-                    double d = sGraph.shortestPath(localToGraph[i], localToGraph[j]);
-                    budgetConstraint.setCoefficient(x[i][j], d);
+                for (int j = 0; j < m; j++) {
+                    if (i != j && i != finish && j != start) {
+                        x[i][j] = model.addVar(0.0, 1.0, 0.0, GRB.BINARY, "x_" + i + "_" + j);
+                    }
                 }
             }
-        }
 
-        int bigM = m;
-        for (int i = 0; i < m; i++) {
-            for (int j = 1; j < m; j++) {
-                if (i == j || x[i][j] == null) continue;
-                // order[i] + 1 <= order[j] + M * (1 - x[i][j])
-                MPConstraint mtz = solver.makeConstraint(Double.NEGATIVE_INFINITY, bigM - 1, "mtz_" + i + "_" + j);
-                mtz.setCoefficient(order[i], 1.0);
-                mtz.setCoefficient(order[j], -1.0);
-                mtz.setCoefficient(x[i][j], bigM);
+            // y[i] = 1 if town i is visited. Start and finish are pinned to 1.
+            GRBVar[] y = new GRBVar[m];
+            y[start]  = model.addVar(1.0, 1.0, 0.0, GRB.INTEGER, "y_start");
+            y[finish] = model.addVar(1.0, 1.0, 0.0, GRB.INTEGER, "y_finish");
+            for (int i = 1; i < finish; i++) {
+                y[i] = model.addVar(0.0, 1.0, 0.0, GRB.BINARY, "y_" + i);
             }
+
+            // MTZ order variables remove subtours and force a single start-to-finish path.
+            GRBVar[] order = new GRBVar[m];
+            order[start] = model.addVar(0.0, 0.0, 0.0, GRB.CONTINUOUS, "u_start");
+            for (int i = 1; i < m; i++) {
+                order[i] = model.addVar(1.0, m - 1, 0.0, GRB.CONTINUOUS, "u_" + i);
+            }
+
+            // Start has exactly one outgoing arc.
+            GRBLinExpr startOut = new GRBLinExpr();
+            for (int j = 1; j < m; j++) {
+                if (x[start][j] != null) startOut.addTerm(1.0, x[start][j]);
+            }
+            model.addConstr(startOut, GRB.EQUAL, 1.0, "start_out");
+
+            // Finish has exactly one incoming arc.
+            GRBLinExpr finishIn = new GRBLinExpr();
+            for (int i = 0; i < finish; i++) {
+                if (x[i][finish] != null) finishIn.addTerm(1.0, x[i][finish]);
+            }
+            model.addConstr(finishIn, GRB.EQUAL, 1.0, "finish_in");
+
+            // Each selected intermediate town has exactly one incoming and one outgoing arc.
+            for (int v = 1; v < finish; v++) {
+                GRBLinExpr in = new GRBLinExpr();
+                for (int i = 0; i < m; i++) {
+                    if (x[i][v] != null) in.addTerm(1.0, x[i][v]);
+                }
+                in.addTerm(-1.0, y[v]);
+                model.addConstr(in, GRB.EQUAL, 0.0, "flow_in_" + v);
+
+                GRBLinExpr out = new GRBLinExpr();
+                for (int j = 0; j < m; j++) {
+                    if (x[v][j] != null) out.addTerm(1.0, x[v][j]);
+                }
+                out.addTerm(-1.0, y[v]);
+                model.addConstr(out, GRB.EQUAL, 0.0, "flow_out_" + v);
+            }
+
+            // Total path distance must fit inside the budget.
+            GRBLinExpr budgetExpr = new GRBLinExpr();
+            for (int i = 0; i < m; i++) {
+                for (int j = 0; j < m; j++) {
+                    if (x[i][j] != null) {
+                        double d = sGraph.shortestPath(localToGraph[i], localToGraph[j]);
+                        budgetExpr.addTerm(d, x[i][j]);
+                    }
+                }
+            }
+            model.addConstr(budgetExpr, GRB.LESS_EQUAL, budget, "budget");
+
+            // MTZ subtour elimination:
+            //   order[i] - order[j] + bigM * x[i][j] <= bigM - 1
+            int bigM = m;
+            for (int i = 0; i < m; i++) {
+                for (int j = 1; j < m; j++) {
+                    if (i == j || x[i][j] == null) continue;
+                    GRBLinExpr mtz = new GRBLinExpr();
+                    mtz.addTerm( 1.0, order[i]);
+                    mtz.addTerm(-1.0, order[j]);
+                    mtz.addTerm((double) bigM, x[i][j]);
+                    model.addConstr(mtz, GRB.LESS_EQUAL, (double) (bigM - 1),
+                            "mtz_" + i + "_" + j);
+                }
+            }
+
+            // Objective: maximize total prize collected over all visited towns.
+            GRBLinExpr obj = new GRBLinExpr();
+            obj.addTerm(sGraph.getPrize(startNode),  y[start]);
+            obj.addTerm(sGraph.getPrize(finishNode), y[finish]);
+            for (int i = 1; i < finish; i++) {
+                obj.addTerm(sGraph.getPrize(localToGraph[i]), y[i]);
+            }
+            model.setObjective(obj, GRB.MAXIMIZE);
+
+            model.optimize();
+
+            int status = model.get(GRB.IntAttr.Status);
+            boolean optimal  = status == GRB.Status.OPTIMAL;
+            boolean feasible = optimal || model.get(GRB.IntAttr.SolCount) > 0;
+
+            if (!feasible) {
+                return captureResult("Gurobi ILP", 0,
+                        "solver status " + status + "; using direct start->finish path");
+            }
+
+            ArrayList<Integer> bestRoute = reconstructGurobiRoute(x, localToGraph, start, finish);
+            double bestDistance = routeDistance(bestRoute);
+
+            total_wt = bestDistance;
+            route = bestRoute;
+            total_prize = prizeForRoute(route);
+            remainingBudget = budget - total_wt;
+
+            String optimality = optimal ? "OPTIMAL" : "FEASIBLE";
+            String scope = (k == feasibleCount)
+                    ? "all " + k + " feasible towns"
+                    : k + " selected candidates of " + feasibleCount + " feasible";
+            return captureResult("Gurobi ILP", 0, optimality + " over " + scope);
+        } catch (GRBException ex) {
+            throw new RuntimeException(
+                    "Gurobi error " + ex.getErrorCode() + ": " + ex.getMessage(), ex);
+        } finally {
+            if (model != null) model.dispose();
         }
-
-        MPObjective objective = solver.objective();
-        objective.setCoefficient(y[start], sGraph.getPrize(startNode));
-        objective.setCoefficient(y[finish], sGraph.getPrize(finishNode));
-        for (int i = 1; i < finish; i++) {
-            objective.setCoefficient(y[i], sGraph.getPrize(localToGraph[i]));
-        }
-        objective.setMaximization();
-
-        MPSolver.ResultStatus status = solver.solve();
-        if (status != MPSolver.ResultStatus.OPTIMAL && status != MPSolver.ResultStatus.FEASIBLE) {
-            return captureResult("OR-Tools ILP", 0, "solver status " + status + "; using direct start->finish path");
-        }
-
-        ArrayList<Integer> bestRoute = reconstructOrToolsRoute(x, localToGraph, start, finish);
-        double bestDistance = routeDistance(bestRoute);
-
-        total_wt = bestDistance;
-        route = bestRoute;
-        total_prize = prizeForRoute(route);
-        remainingBudget = budget - total_wt;
-
-        String optimality = (status == MPSolver.ResultStatus.OPTIMAL) ? "OPTIMAL" : "FEASIBLE";
-        String scope = (k == feasibleCount)
-                ? "all " + k + " feasible towns"
-                : k + " selected candidates of " + feasibleCount + " feasible";
-        return captureResult("OR-Tools ILP", 0, optimality + " over " + scope);
     }
 
-    static ArrayList<Integer> reconstructOrToolsRoute(MPVariable[][] x, int[] localToGraph, int start, int finish) {
+    static ArrayList<Integer> reconstructGurobiRoute(GRBVar[][] x, int[] localToGraph,
+                                                     int start, int finish) throws GRBException {
         ArrayList<Integer> bestRoute = new ArrayList<>();
         boolean[] usedLocal = new boolean[localToGraph.length];
         int cur = start;
@@ -915,7 +965,7 @@ public class Main {
         while (cur != finish) {
             int next = -1;
             for (int j = 0; j < localToGraph.length; j++) {
-                if (x[cur][j] != null && x[cur][j].solutionValue() > 0.5) {
+                if (x[cur][j] != null && x[cur][j].get(GRB.DoubleAttr.X) > 0.5) {
                     next = j;
                     break;
                 }
