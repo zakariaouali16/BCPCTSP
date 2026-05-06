@@ -1,3 +1,5 @@
+package pmarl;
+
 public class CityNode {
 	public String name;
 	public double lat, lon;
@@ -21,7 +23,7 @@ public class CityNode {
 		this.pop = og.pop;
 	}
 
-	public static double getDistance(CityNode city1, CityNode city2) {
+	public static double getDistance(CityNode city1, CityNode city2) { 
 		// city1.lat represents X, city1.lon represents Y
 		double dx = city2.lat - city1.lat;
 		double dy = city2.lon - city1.lon;
