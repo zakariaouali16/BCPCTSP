@@ -3,6 +3,12 @@ package pmarl;
 import java.io.*;
 import java.util.*;
 
+import com.google.ortools.Loader;
+import com.google.ortools.linearsolver.MPConstraint;
+import com.google.ortools.linearsolver.MPObjective;
+import com.google.ortools.linearsolver.MPSolver;
+import com.google.ortools.linearsolver.MPVariable;
+
 /**
  * Main.java - 20-run experiment using usa_towns_with_rewards1000.csv.
  *
@@ -43,10 +49,19 @@ public class Main {
     static final double beta = 2.0;
     static double q0 = 0.8;
 
-    // Exact baseline settings. A full ILP over 1000 towns needs an external MIP
-    // solver and is usually too large, so this program solves the same
-    // prize-collecting path model exactly over the strongest candidate subset.
-    static int ILP_CANDIDATE_LIMIT = 16;
+    // OR-Tools ILP baseline settings.
+    // ILP_CANDIDATE_LIMIT controls how many feasible intermediate towns the
+    // OR-Tools model considers.
+    //   Integer.MAX_VALUE (default) = ALL feasible towns -> globally optimal,
+    //                                 but may be very slow for large feasible sets.
+    //   A positive integer N         = top-N by prize/ratio (fast but approximate).
+    //   0                            = skip ILP entirely.
+    static int ILP_CANDIDATE_LIMIT = Integer.MAX_VALUE;
+
+    // CBC can solve moderate candidate sets, but a 1000-town complete graph can
+    // create a very large MIP. This cap is used only when candidateLimit is left
+    // unlimited; pass an explicit ilpCandidateLimit to raise/lower it.
+    static final int DEFAULT_ORTOOLS_CANDIDATE_CAP = 80;
 
     // Graph flags
     static final int UNVISITED = 0;
@@ -108,8 +123,9 @@ public class Main {
         loadCSVData(fileName);
         System.out.printf("Loaded %,d towns from %s%n", rawN, fileName);
         System.out.printf(
-                "Runs: %d | Budget: %.2f | Seed: %d | ILP candidate limit: %d%n%n",
-                TOTAL_RUNS, budget, baseSeed, ILP_CANDIDATE_LIMIT);
+                "Runs: %d | Budget: %.2f | Seed: %d | ILP candidate limit: %s%n%n",
+                TOTAL_RUNS, budget, baseSeed,
+                (ILP_CANDIDATE_LIMIT == Integer.MAX_VALUE ? "unlimited (all feasible)" : String.valueOf(ILP_CANDIDATE_LIMIT)));
 
         int[][] runPairs = chooseRunPairs(TOTAL_RUNS, budget, baseSeed);
         AlgoResult[][] results = new AlgoResult[TOTAL_RUNS][4];
@@ -172,8 +188,10 @@ public class Main {
         if (budget <= 0) {
             throw new IllegalArgumentException("budget must be positive");
         }
-        if (ILP_CANDIDATE_LIMIT < 0 || ILP_CANDIDATE_LIMIT > 18) {
-            throw new IllegalArgumentException("ilpCandidateLimit must be between 0 and 18");
+        if (ILP_CANDIDATE_LIMIT < 0) {
+            throw new IllegalArgumentException(
+                "ilpCandidateLimit must be >= 0  (0 = skip ILP, omit arg or pass " +
+                Integer.MAX_VALUE + " = all feasible towns)");
         }
     }
 
@@ -741,7 +759,6 @@ public class Main {
 
     static AlgoResult solveExactSubsetBaseline(int candidateLimit) {
         ArrayList<Integer> candidates = chooseIlpCandidates(candidateLimit);
-        int k = candidates.size();
         int feasibleCount = countFeasibleIntermediateNodes();
         int startNode = 0;
         int finishNode = sGraph.getLastNode();
@@ -755,112 +772,195 @@ public class Main {
         total_prize = prizeForRoute(route);
         remainingBudget = budget - total_wt;
 
+        if (candidateLimit == Integer.MAX_VALUE && candidates.size() > DEFAULT_ORTOOLS_CANDIDATE_CAP) {
+            System.out.printf(
+                "  [OR-Tools ILP] %d feasible towns is a large MIP.\n" +
+                "                 Trimming to top-%d by prize/ratio. Pass an explicit\n" +
+                "                 ilpCandidateLimit to control this cap.\n",
+                candidates.size(), DEFAULT_ORTOOLS_CANDIDATE_CAP);
+            candidates = trimCandidates(candidates, DEFAULT_ORTOOLS_CANDIDATE_CAP);
+        }
+
+        int k = candidates.size();
         if (k == 0) {
             String note = (candidateLimit == 0)
                     ? "candidate limit is 0"
                     : "no feasible intermediate candidates";
-            return captureResult("ILP/exact", 0, note);
+            return captureResult("OR-Tools ILP", 0, note);
         }
 
-        int maskCount = 1 << k;
-        double inf = Double.POSITIVE_INFINITY;
-        double[][] dp = new double[maskCount][k];
-        int[][] parent = new int[maskCount][k];
-        for (int mask = 0; mask < maskCount; mask++) {
-            Arrays.fill(dp[mask], inf);
-            Arrays.fill(parent[mask], -2);
+        Loader.loadNativeLibraries();
+        MPSolver solver = MPSolver.createSolver("CBC_MIXED_INTEGER_PROGRAMMING");
+        if (solver == null) {
+            throw new IllegalStateException("Could not create OR-Tools CBC MIP solver.");
         }
+        solver.setTimeLimit(120_000L);
 
-        int[] rewardSum = new int[maskCount];
-        for (int mask = 1; mask < maskCount; mask++) {
-            int bit = Integer.numberOfTrailingZeros(mask);
-            int previousMask = mask & ~(1 << bit);
-            rewardSum[mask] = rewardSum[previousMask] + sGraph.getPrize(candidates.get(bit));
+        int m = k + 2;
+        int start = 0;
+        int finish = m - 1;
+        int[] localToGraph = new int[m];
+        localToGraph[start] = startNode;
+        for (int i = 0; i < k; i++) {
+            localToGraph[i + 1] = candidates.get(i);
         }
+        localToGraph[finish] = finishNode;
 
-        for (int j = 0; j < k; j++) {
-            int node = candidates.get(j);
-            int mask = 1 << j;
-            dp[mask][j] = sGraph.shortestPath(startNode, node);
-            parent[mask][j] = -1;
-        }
-
-        int bestMask = 0;
-        int bestLast = -1;
-        int bestReward = total_prize;
-        double bestDistance = total_wt;
-
-        for (int mask = 1; mask < maskCount; mask++) {
-            for (int last = 0; last < k; last++) {
-                if ((mask & (1 << last)) == 0 || Double.isInfinite(dp[mask][last])) {
-                    continue;
-                }
-
-                int lastNode = candidates.get(last);
-                double finishDistance = dp[mask][last] + sGraph.shortestPath(lastNode, finishNode);
-                int reward = sGraph.getPrize(startNode) + sGraph.getPrize(finishNode) + rewardSum[mask];
-                if (finishDistance <= budget &&
-                        (reward > bestReward || (reward == bestReward && finishDistance < bestDistance))) {
-                    bestReward = reward;
-                    bestDistance = finishDistance;
-                    bestMask = mask;
-                    bestLast = last;
-                }
-
-                int remaining = (~mask) & (maskCount - 1);
-                while (remaining != 0) {
-                    int bit = Integer.numberOfTrailingZeros(remaining);
-                    remaining &= ~(1 << bit);
-                    int nextNode = candidates.get(bit);
-                    int nextMask = mask | (1 << bit);
-                    double newDistance = dp[mask][last] + sGraph.shortestPath(lastNode, nextNode);
-                    if (newDistance + sGraph.shortestPath(nextNode, finishNode) > budget) {
-                        continue;
-                    }
-                    if (newDistance < dp[nextMask][bit]) {
-                        dp[nextMask][bit] = newDistance;
-                        parent[nextMask][bit] = last;
-                    }
+        MPVariable[][] x = new MPVariable[m][m];
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < m; j++) {
+                if (i != j && i != finish && j != start) {
+                    x[i][j] = solver.makeBoolVar("x_" + i + "_" + j);
                 }
             }
         }
 
-        ArrayList<Integer> bestRoute = reconstructExactSubsetRoute(candidates, parent, bestMask, bestLast);
+        MPVariable[] y = new MPVariable[m];
+        y[start] = solver.makeIntVar(1.0, 1.0, "y_start");
+        y[finish] = solver.makeIntVar(1.0, 1.0, "y_finish");
+        for (int i = 1; i < finish; i++) {
+            y[i] = solver.makeBoolVar("y_" + i);
+        }
+
+        // MTZ order variables remove subtours and force a single start-to-finish path.
+        MPVariable[] order = new MPVariable[m];
+        order[start] = solver.makeNumVar(0.0, 0.0, "u_start");
+        for (int i = 1; i < m; i++) {
+            order[i] = solver.makeNumVar(1.0, m - 1, "u_" + i);
+        }
+
+        // Start has exactly one outgoing arc; finish has exactly one incoming arc.
+        MPConstraint startOut = solver.makeConstraint(1.0, 1.0, "start_out");
+        for (int j = 1; j < m; j++) {
+            if (x[start][j] != null) startOut.setCoefficient(x[start][j], 1.0);
+        }
+
+        MPConstraint finishIn = solver.makeConstraint(1.0, 1.0, "finish_in");
+        for (int i = 0; i < finish; i++) {
+            if (x[i][finish] != null) finishIn.setCoefficient(x[i][finish], 1.0);
+        }
+
+        // Each selected intermediate town has one incoming and one outgoing arc.
+        for (int v = 1; v < finish; v++) {
+            MPConstraint in = solver.makeConstraint(0.0, 0.0, "flow_in_" + v);
+            for (int i = 0; i < m; i++) {
+                if (x[i][v] != null) in.setCoefficient(x[i][v], 1.0);
+            }
+            in.setCoefficient(y[v], -1.0);
+
+            MPConstraint out = solver.makeConstraint(0.0, 0.0, "flow_out_" + v);
+            for (int j = 0; j < m; j++) {
+                if (x[v][j] != null) out.setCoefficient(x[v][j], 1.0);
+            }
+            out.setCoefficient(y[v], -1.0);
+        }
+
+        MPConstraint budgetConstraint = solver.makeConstraint(Double.NEGATIVE_INFINITY, budget, "budget");
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < m; j++) {
+                if (x[i][j] != null) {
+                    double d = sGraph.shortestPath(localToGraph[i], localToGraph[j]);
+                    budgetConstraint.setCoefficient(x[i][j], d);
+                }
+            }
+        }
+
+        int bigM = m;
+        for (int i = 0; i < m; i++) {
+            for (int j = 1; j < m; j++) {
+                if (i == j || x[i][j] == null) continue;
+                // order[i] + 1 <= order[j] + M * (1 - x[i][j])
+                MPConstraint mtz = solver.makeConstraint(Double.NEGATIVE_INFINITY, bigM - 1, "mtz_" + i + "_" + j);
+                mtz.setCoefficient(order[i], 1.0);
+                mtz.setCoefficient(order[j], -1.0);
+                mtz.setCoefficient(x[i][j], bigM);
+            }
+        }
+
+        MPObjective objective = solver.objective();
+        objective.setCoefficient(y[start], sGraph.getPrize(startNode));
+        objective.setCoefficient(y[finish], sGraph.getPrize(finishNode));
+        for (int i = 1; i < finish; i++) {
+            objective.setCoefficient(y[i], sGraph.getPrize(localToGraph[i]));
+        }
+        objective.setMaximization();
+
+        MPSolver.ResultStatus status = solver.solve();
+        if (status != MPSolver.ResultStatus.OPTIMAL && status != MPSolver.ResultStatus.FEASIBLE) {
+            return captureResult("OR-Tools ILP", 0, "solver status " + status + "; using direct start->finish path");
+        }
+
+        ArrayList<Integer> bestRoute = reconstructOrToolsRoute(x, localToGraph, start, finish);
+        double bestDistance = routeDistance(bestRoute);
+
         total_wt = bestDistance;
         route = bestRoute;
         total_prize = prizeForRoute(route);
         remainingBudget = budget - total_wt;
 
-        String note = "exact over " + k + " selected candidates";
-        if (k < feasibleCount) {
-            note += " of " + feasibleCount + " feasible towns";
-        }
-        return captureResult("ILP/exact", 0, note);
+        String optimality = (status == MPSolver.ResultStatus.OPTIMAL) ? "OPTIMAL" : "FEASIBLE";
+        String scope = (k == feasibleCount)
+                ? "all " + k + " feasible towns"
+                : k + " selected candidates of " + feasibleCount + " feasible";
+        return captureResult("OR-Tools ILP", 0, optimality + " over " + scope);
     }
 
-    static ArrayList<Integer> reconstructExactSubsetRoute(ArrayList<Integer> candidates, int[][] parent,
-                                                           int mask, int last) {
-        ArrayList<Integer> order = new ArrayList<>();
-        if (last >= 0) {
-            int curMask = mask;
-            int curLast = last;
-            while (curLast >= 0) {
-                order.add(candidates.get(curLast));
-                int prev = parent[curMask][curLast];
-                curMask &= ~(1 << curLast);
-                curLast = prev;
+    static ArrayList<Integer> reconstructOrToolsRoute(MPVariable[][] x, int[] localToGraph, int start, int finish) {
+        ArrayList<Integer> bestRoute = new ArrayList<>();
+        boolean[] usedLocal = new boolean[localToGraph.length];
+        int cur = start;
+        bestRoute.add(localToGraph[cur]);
+        usedLocal[cur] = true;
+
+        while (cur != finish) {
+            int next = -1;
+            for (int j = 0; j < localToGraph.length; j++) {
+                if (x[cur][j] != null && x[cur][j].solutionValue() > 0.5) {
+                    next = j;
+                    break;
+                }
             }
-            Collections.reverse(order);
+            if (next < 0 || usedLocal[next]) {
+                break;
+            }
+            bestRoute.add(localToGraph[next]);
+            usedLocal[next] = true;
+            cur = next;
         }
 
-        ArrayList<Integer> bestRoute = new ArrayList<>();
-        bestRoute.add(0);
-        bestRoute.addAll(order);
-        int finish = sGraph.getLastNode();
-        if (bestRoute.get(bestRoute.size() - 1) != finish) {
-            bestRoute.add(finish);
+        if (bestRoute.get(bestRoute.size() - 1) != localToGraph[finish]) {
+            bestRoute.add(localToGraph[finish]);
         }
         return bestRoute;
+    }
+
+    static double routeDistance(ArrayList<Integer> path) {
+        double d = 0.0;
+        for (int i = 0; i < path.size() - 1; i++) {
+            d += sGraph.shortestPath(path.get(i), path.get(i + 1));
+        }
+        return d;
+    }
+
+    /**
+     * Trims a candidate list to the top-{@code limit} nodes using the same
+     * prize/ratio ranking used by chooseIlpCandidates.  Called only when the
+     * full feasible set exceeds MAX_BITMASK_K.
+     */
+    static ArrayList<Integer> trimCandidates(ArrayList<Integer> candidates, int limit) {
+        if (candidates.size() <= limit) return candidates;
+
+        ArrayList<Integer> byPrize = new ArrayList<>(candidates);
+        byPrize.sort(Comparator.comparingInt((Integer o) -> sGraph.getPrize(o)).reversed());
+
+        ArrayList<Integer> byRatio = new ArrayList<>(candidates);
+        byRatio.sort((a, b) -> Double.compare(candidateRatioScore(b), candidateRatioScore(a)));
+
+        LinkedHashSet<Integer> selected = new LinkedHashSet<>();
+        int prizeQuota = Math.max(1, limit / 2);
+        addTopCandidates(selected, byPrize, prizeQuota);
+        addTopCandidates(selected, byRatio, limit);
+        return new ArrayList<>(selected);
     }
 
     static ArrayList<Integer> chooseIlpCandidates(int limit) {
