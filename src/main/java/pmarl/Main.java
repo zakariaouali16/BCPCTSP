@@ -4,6 +4,7 @@ import java.io.*;
 import java.util.*;
 
 import com.gurobi.gurobi.GRB;
+import com.gurobi.gurobi.GRBCallback;
 import com.gurobi.gurobi.GRBEnv;
 import com.gurobi.gurobi.GRBException;
 import com.gurobi.gurobi.GRBLinExpr;
@@ -59,10 +60,9 @@ public class Main {
     //   0                            = skip ILP entirely.
     static int ILP_CANDIDATE_LIMIT = Integer.MAX_VALUE;
 
-    // Gurobi can comfortably handle moderately large MIPs, but a 1000-town
-    // complete graph still produces a very large model. This cap is used only
-    // when candidateLimit is left unlimited; pass an explicit ilpCandidateLimit
-    // to raise/lower it.
+    // Legacy safety cap, kept only for trimCandidates() reuse if you ever
+    // re-enable an auto-trim path.  No longer applied automatically — when
+    // candidateLimit == Integer.MAX_VALUE, Gurobi receives ALL feasible towns.
     static final int DEFAULT_GUROBI_CANDIDATE_CAP = 80;
 
     // Gurobi WLS license credentials. The environment is created lazily on the
@@ -71,7 +71,7 @@ public class Main {
     static final String GUROBI_WLS_ACCESS_ID = "356d318b-49e5-488c-adf2-e5e2d4bd1179";
     static final String GUROBI_WLS_SECRET    = "2be2af93-98ae-4d46-b9f8-1a693ac175f6";
     static final String GUROBI_LICENSE_ID    = "2798939";
-    static final double GUROBI_TIME_LIMIT_S  = 120.0;
+    static final double GUROBI_TIME_LIMIT_S  = 600.0;
     static GRBEnv gurobiEnv = null;
 
     static GRBEnv getGurobiEnv() throws GRBException {
@@ -139,6 +139,90 @@ public class Main {
             this.timeMs = timeMs;
             this.route = route;
             this.note = note;
+        }
+    }
+
+    /**
+     * Live progress bar for Gurobi's MIP search. Hooks into the MIP callback
+     * and overprints a single line via \r showing elapsed time, current
+     * incumbent / bound, MIP gap, and node count. Throttled to ~4 Hz.
+     *
+     * Bar fraction = max(time_fraction, 1 - mip_gap) so the bar fills as
+     * either termination condition (time limit or optimality) is approached.
+     */
+    static class GurobiProgressCallback extends GRBCallback {
+        private final double timeLimit;
+        private final String label;
+        private long lastUpdateNs = 0L;
+        private static final long UPDATE_INTERVAL_NS = 250_000_000L; // 4 Hz
+        private boolean printedAtLeastOnce = false;
+        private boolean finished = false;
+
+        GurobiProgressCallback(double timeLimit, String label) {
+            this.timeLimit = timeLimit;
+            this.label = label;
+        }
+
+        @Override
+        protected void callback() {
+            try {
+                if (finished) return;
+                if (where != GRB.CB_MIP && where != GRB.CB_MIPSOL && where != GRB.CB_MIPNODE) {
+                    return;
+                }
+
+                long now = System.nanoTime();
+                if (now - lastUpdateNs < UPDATE_INTERVAL_NS) return;
+                lastUpdateNs = now;
+
+                double runtime = getDoubleInfo(GRB.CB_RUNTIME);
+                double objBst  = getDoubleInfo(GRB.CB_MIP_OBJBST);
+                double objBnd  = getDoubleInfo(GRB.CB_MIP_OBJBND);
+                double nodes   = getDoubleInfo(GRB.CB_MIP_NODCNT);
+
+                renderBar(runtime, objBst, objBnd, (long) nodes);
+                printedAtLeastOnce = true;
+            } catch (GRBException e) {
+                // Swallow — callback errors must not abort optimization
+            }
+        }
+
+        private void renderBar(double runtime, double objBst, double objBnd, long nodes) {
+            boolean haveBest  = Math.abs(objBst) < 1e30;
+            boolean haveBound = Math.abs(objBnd) < 1e30;
+
+            double timeFrac = Math.min(1.0, runtime / Math.max(timeLimit, 1e-9));
+            double gapVal   = Double.NaN;
+            double gapFrac  = 0.0;
+            if (haveBest && haveBound && Math.abs(objBst) > 1e-10) {
+                gapVal  = Math.abs(objBnd - objBst) / Math.abs(objBst);
+                gapFrac = Math.max(0.0, Math.min(1.0, 1.0 - gapVal));
+            }
+            double frac = Math.max(timeFrac, gapFrac);
+
+            int barWidth = 28;
+            int filled = (int) Math.round(frac * barWidth);
+            if (filled > barWidth) filled = barWidth;
+            if (filled < 0) filled = 0;
+            String bar = "[" + "#".repeat(filled) + ".".repeat(barWidth - filled) + "]";
+
+            String objStr = haveBest  ? String.format("%,10.0f", objBst) : "      --  ";
+            String bndStr = haveBound ? String.format("%,10.0f", objBnd) : "      --  ";
+            String gapStr = Double.isNaN(gapVal) ? "   -- " : String.format("%5.1f%%", gapVal * 100);
+
+            String line = String.format(
+                "  %s %s %5.1f%% | t=%6.1fs/%5.1fs | obj=%s bnd=%s gap=%s | nodes=%,d",
+                label, bar, frac * 100.0, runtime, timeLimit, objStr, bndStr, gapStr, nodes);
+            // \r overwrites the current line; trailing spaces clear leftovers from longer prior lines.
+            System.out.print("\r" + line + "    ");
+            System.out.flush();
+        }
+
+        /** Print a trailing newline so subsequent output starts on a fresh line. */
+        void finish() {
+            if (finished) return;
+            finished = true;
+            if (printedAtLeastOnce) System.out.println();
         }
     }
 
@@ -797,13 +881,14 @@ public class Main {
         total_prize = prizeForRoute(route);
         remainingBudget = budget - total_wt;
 
-        if (candidateLimit == Integer.MAX_VALUE && candidates.size() > DEFAULT_GUROBI_CANDIDATE_CAP) {
+        // Safety cap removed: when candidateLimit == Integer.MAX_VALUE we now
+        // hand ALL feasible intermediate towns to Gurobi.  Expect large MIPs
+        // and frequent TimeLimit hits on big instances; raise
+        // GUROBI_TIME_LIMIT_S if you need more time per run.
+        if (candidateLimit == Integer.MAX_VALUE && candidates.size() > 0) {
             System.out.printf(
-                "  [Gurobi ILP] %d feasible towns is a large MIP.\n" +
-                "               Trimming to top-%d by prize/ratio. Pass an explicit\n" +
-                "               ilpCandidateLimit to control this cap.\n",
-                candidates.size(), DEFAULT_GUROBI_CANDIDATE_CAP);
-            candidates = trimCandidates(candidates, DEFAULT_GUROBI_CANDIDATE_CAP);
+                "  [Gurobi ILP] Handing %d feasible towns to Gurobi (no trimming).%n",
+                candidates.size());
         }
 
         int k = candidates.size();
@@ -825,10 +910,15 @@ public class Main {
         localToGraph[finish] = finishNode;
 
         GRBModel model = null;
+        GurobiProgressCallback progressCb = null;
         try {
             GRBEnv env = getGurobiEnv();
             model = new GRBModel(env);
             model.set(GRB.DoubleParam.TimeLimit, GUROBI_TIME_LIMIT_S);
+
+            // Live progress bar — overprints a single line during optimize().
+            progressCb = new GurobiProgressCallback(GUROBI_TIME_LIMIT_S, "[Gurobi]");
+            model.setCallback(progressCb);
 
             // x[i][j] = 1 if arc (i,j) is used. Skip i==j, arcs into start, arcs out of finish.
             GRBVar[][] x = new GRBVar[m][m];
@@ -950,6 +1040,7 @@ public class Main {
             throw new RuntimeException(
                     "Gurobi error " + ex.getErrorCode() + ": " + ex.getMessage(), ex);
         } finally {
+            if (progressCb != null) progressCb.finish();
             if (model != null) model.dispose();
         }
     }
