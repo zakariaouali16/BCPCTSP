@@ -1,6 +1,7 @@
 pmarl\TableData.class
-Capital_Cities10.txt
-Capital_Cities.txt
-LATowns.txt
-Capital_Cities20.txt
-usa_towns_with_rewards1000.csv
+pmarl\Main$AlgoResult.class
+pmarl\Graph.class
+pmarl\CityNode.class
+pmarl\Main.class
+pmarl\Agent.class
+pmarl\Main$GurobiProgressCallback.class

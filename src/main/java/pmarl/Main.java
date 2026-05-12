@@ -36,9 +36,9 @@ import com.gurobi.gurobi.GRBVar;
 public class Main {
 
     // File and run settings
-    static String fileName = "usa_towns_with_rewards1000.csv";
+    static String fileName = "usa_towns_with_rewards.csv";
     static int TOTAL_RUNS = 20;
-    static double budget = 5_000.0;
+    static double budget = 10_000.0;
     static long baseSeed = 42L;
 
     // Q-learning hyper-parameters
@@ -118,6 +118,7 @@ public class Main {
     static int routeMaxIter;
     static int prizeMax;
     static Random stepRandom;
+    static ArrayList<Integer> greedyRatioRoute = null; // warm start for ILP
 
     static class AlgoResult {
         String name;
@@ -482,6 +483,8 @@ public class Main {
 
     static void initStatics() {
         statesCt = sGraph.n();
+        Q = null;
+        R = null;
         Q = new double[statesCt][statesCt];
         R = new double[statesCt][statesCt];
 
@@ -721,6 +724,7 @@ public class Main {
         traverseR();
         long ms = System.currentTimeMillis() - t0;
 
+        greedyRatioRoute = new ArrayList<>(route); // save for ILP warm start
         return captureResult("Greedy ratio", ms, "highest reward/distance first");
     }
 
@@ -1012,6 +1016,34 @@ public class Main {
             }
             model.setObjective(obj, GRB.MAXIMIZE);
 
+            // MIP warm start: seed Gurobi with the greedy-ratio path filtered to
+            // candidate nodes. Skips nodes not in the candidate set while preserving
+            // relative order, which is always budget-feasible by triangle inequality.
+            if (greedyRatioRoute != null) {
+                Map<Integer, Integer> g2l = new HashMap<>();
+                for (int i = 0; i < m; i++) g2l.put(localToGraph[i], i);
+
+                List<Integer> warmLocal = new ArrayList<>();
+                warmLocal.add(start);
+                for (int gNode : greedyRatioRoute) {
+                    if (gNode == localToGraph[start] || gNode == localToGraph[finish]) continue;
+                    Integer li = g2l.get(gNode);
+                    if (li != null) warmLocal.add(li);
+                }
+                warmLocal.add(finish);
+
+                for (int i = 0; i < m; i++)
+                    for (int j = 0; j < m; j++)
+                        if (x[i][j] != null) x[i][j].set(GRB.DoubleAttr.Start, 0.0);
+                for (int i = 0; i < warmLocal.size() - 1; i++) {
+                    int a = warmLocal.get(i), b = warmLocal.get(i + 1);
+                    if (a != b && x[a][b] != null) x[a][b].set(GRB.DoubleAttr.Start, 1.0);
+                }
+                Set<Integer> inWarm = new HashSet<>(warmLocal);
+                for (int i = 1; i < finish; i++)
+                    y[i].set(GRB.DoubleAttr.Start, inWarm.contains(i) ? 1.0 : 0.0);
+            }
+
             model.optimize();
 
             int status = model.get(GRB.IntAttr.Status);
@@ -1113,23 +1145,41 @@ public class Main {
             }
         }
 
-        if (limit == 0) {
-            return new ArrayList<>();
-        }
-        if (feasible.size() <= limit) {
-            return feasible;
+        if (limit == 0) return new ArrayList<>();
+        if (feasible.size() <= limit) return feasible;
+
+        // Greedy path simulation: pick candidates sequentially by prize/distance
+        // from the current position (mirrors traverseR). This selects geographically
+        // clustered towns that can be visited together, not isolated high-value towns
+        // that would require expensive detours between them.
+        LinkedHashSet<Integer> selected = new LinkedHashSet<>();
+        boolean[] used = new boolean[sGraph.n()];
+        double spent = 0.0;
+        int cur = 0;
+
+        while (selected.size() < limit) {
+            double rem = budget - spent;
+            int best = -1;
+            double bestScore = Double.NEGATIVE_INFINITY;
+            for (int node : feasible) {
+                if (used[node]) continue;
+                double toNode = sGraph.shortestPath(cur, node);
+                double toEnd  = sGraph.shortestPath(node, finish);
+                if (toNode + toEnd > rem) continue;
+                double score = sGraph.getPrize(node) / Math.max(1.0, toNode);
+                if (score > bestScore) { bestScore = score; best = node; }
+            }
+            if (best < 0) break;
+            selected.add(best);
+            used[best] = true;
+            spent += sGraph.shortestPath(cur, best);
+            cur = best;
         }
 
+        // Fill remaining slots with highest-prize feasible nodes not yet chosen.
         ArrayList<Integer> byPrize = new ArrayList<>(feasible);
         byPrize.sort(Comparator.comparingInt((Integer o) -> sGraph.getPrize(o)).reversed());
-
-        ArrayList<Integer> byRatio = new ArrayList<>(feasible);
-        byRatio.sort((a, b) -> Double.compare(candidateRatioScore(b), candidateRatioScore(a)));
-
-        LinkedHashSet<Integer> selected = new LinkedHashSet<>();
-        int prizeQuota = Math.max(1, limit / 2);
-        addTopCandidates(selected, byPrize, prizeQuota);
-        addTopCandidates(selected, byRatio, limit);
+        addTopCandidates(selected, byPrize, limit);
 
         return new ArrayList<>(selected);
     }
