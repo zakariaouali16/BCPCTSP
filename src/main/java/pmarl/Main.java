@@ -257,6 +257,9 @@ public class Main {
                     "============================================================%n",
                     run, TOTAL_RUNS, begin, end, rawDistance(si, ei));
 
+            buildCityList();
+            initGraph();
+
             results[run - 1][0] = runGreedyPrize();
             printRunResult(results[run - 1][0]);
 
@@ -706,9 +709,6 @@ public class Main {
     }
 
     static AlgoResult runGreedyPrize() {
-        buildCityList();
-        initGraph();
-
         long t0 = System.currentTimeMillis();
         traverseP();
         long ms = System.currentTimeMillis() - t0;
@@ -717,9 +717,6 @@ public class Main {
     }
 
     static AlgoResult runGreedyRatio() {
-        buildCityList();
-        initGraph();
-
         long t0 = System.currentTimeMillis();
         traverseR();
         long ms = System.currentTimeMillis() - t0;
@@ -729,8 +726,6 @@ public class Main {
     }
 
     static AlgoResult runPMARL() {
-        buildCityList();
-        initGraph();
         initStatics();
 
         prizeMax = Integer.MIN_VALUE;
@@ -746,9 +741,6 @@ public class Main {
     }
 
     static AlgoResult runIlpExactSubset() {
-        buildCityList();
-        initGraph();
-
         long t0 = System.currentTimeMillis();
         AlgoResult result = solveExactSubsetBaseline(ILP_CANDIDATE_LIMIT);
         result.timeMs = System.currentTimeMillis() - t0;
