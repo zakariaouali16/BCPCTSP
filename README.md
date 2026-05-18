@@ -83,6 +83,9 @@ algorithm, followed by a comparison summary across all runs with per-algorithm a
 a best/tied count.
 
 ## Results
+![Distance Result](results_gurobi/Distance.jpg)
+![Reward Result](results_gurobi/Reward.jpg)
+![Time Result](results_gurobi/Time.jpg)
 
 The three PDFs in this repository show how the four algorithms scale across budgets, generated
 with gnuplot from the experiment output:
