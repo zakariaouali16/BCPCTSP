@@ -1,0 +1,3 @@
+mvn clean compile exec:java "-Dexec.mainClass=Main"
+mvn clean compile 
+mvn exec:java "-Dexec.mainClass=pmarl.Main" "-Dexec.args=usa_towns_with_rewards.csv 20 10000 42 40"

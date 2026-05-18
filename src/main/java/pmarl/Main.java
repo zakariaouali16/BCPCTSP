@@ -3,6 +3,14 @@ package pmarl;
 import java.io.*;
 import java.util.*;
 
+import com.gurobi.gurobi.GRB;
+import com.gurobi.gurobi.GRBCallback;
+import com.gurobi.gurobi.GRBEnv;
+import com.gurobi.gurobi.GRBException;
+import com.gurobi.gurobi.GRBLinExpr;
+import com.gurobi.gurobi.GRBModel;
+import com.gurobi.gurobi.GRBVar;
+
 /**
  * Main.java - 20-run experiment using usa_towns_with_rewards1000.csv.
  *
@@ -28,9 +36,9 @@ import java.util.*;
 public class Main {
 
     // File and run settings
-    static String fileName = "usa_towns_with_rewards1000.csv";
+    static String fileName = "usa_towns_with_rewards.csv";
     static int TOTAL_RUNS = 20;
-    static double budget = 5_000.0;
+    static double budget = 10_000.0;
     static long baseSeed = 42L;
 
     // Q-learning hyper-parameters
@@ -43,10 +51,42 @@ public class Main {
     static final double beta = 2.0;
     static double q0 = 0.8;
 
-    // Exact baseline settings. A full ILP over 1000 towns needs an external MIP
-    // solver and is usually too large, so this program solves the same
-    // prize-collecting path model exactly over the strongest candidate subset.
-    static int ILP_CANDIDATE_LIMIT = 16;
+    // Gurobi ILP baseline settings.
+    // ILP_CANDIDATE_LIMIT controls how many feasible intermediate towns the
+    // Gurobi model considers.
+    //   Integer.MAX_VALUE (default) = ALL feasible towns -> globally optimal,
+    //                                 but may be very slow for large feasible sets.
+    //   A positive integer N         = top-N by prize/ratio (fast but approximate).
+    //   0                            = skip ILP entirely.
+    static int ILP_CANDIDATE_LIMIT = Integer.MAX_VALUE;
+
+    // Legacy safety cap, kept only for trimCandidates() reuse if you ever
+    // re-enable an auto-trim path.  No longer applied automatically — when
+    // candidateLimit == Integer.MAX_VALUE, Gurobi receives ALL feasible towns.
+    static final int DEFAULT_GUROBI_CANDIDATE_CAP = 80;
+
+    // Gurobi WLS license credentials. The environment is created lazily on the
+    // first ILP run and reused across all subsequent runs to avoid the cost of
+    // repeatedly re-authenticating with the WLS server.
+    static final String GUROBI_WLS_ACCESS_ID = "356d318b-49e5-488c-adf2-e5e2d4bd1179";
+    static final String GUROBI_WLS_SECRET    = "2be2af93-98ae-4d46-b9f8-1a693ac175f6";
+    static final String GUROBI_LICENSE_ID    = "2798939";
+    static final double GUROBI_TIME_LIMIT_S  = 600.0;
+    static GRBEnv gurobiEnv = null;
+
+    static GRBEnv getGurobiEnv() throws GRBException {
+        if (gurobiEnv == null) {
+            GRBEnv env = new GRBEnv(true);
+            env.set("WLSACCESSID", GUROBI_WLS_ACCESS_ID);
+            env.set("WLSSECRET",   GUROBI_WLS_SECRET);
+            env.set("LICENSEID",   GUROBI_LICENSE_ID);
+            // Suppress per-run solver chatter; the captureResult note is enough.
+            env.set(GRB.IntParam.OutputFlag, 0);
+            env.start();
+            gurobiEnv = env;
+        }
+        return gurobiEnv;
+    }
 
     // Graph flags
     static final int UNVISITED = 0;
@@ -78,6 +118,7 @@ public class Main {
     static int routeMaxIter;
     static int prizeMax;
     static Random stepRandom;
+    static ArrayList<Integer> greedyRatioRoute = null; // warm start for ILP
 
     static class AlgoResult {
         String name;
@@ -102,14 +143,99 @@ public class Main {
         }
     }
 
+    /**
+     * Live progress bar for Gurobi's MIP search. Hooks into the MIP callback
+     * and overprints a single line via \r showing elapsed time, current
+     * incumbent / bound, MIP gap, and node count. Throttled to ~4 Hz.
+     *
+     * Bar fraction = max(time_fraction, 1 - mip_gap) so the bar fills as
+     * either termination condition (time limit or optimality) is approached.
+     */
+    static class GurobiProgressCallback extends GRBCallback {
+        private final double timeLimit;
+        private final String label;
+        private long lastUpdateNs = 0L;
+        private static final long UPDATE_INTERVAL_NS = 250_000_000L; // 4 Hz
+        private boolean printedAtLeastOnce = false;
+        private boolean finished = false;
+
+        GurobiProgressCallback(double timeLimit, String label) {
+            this.timeLimit = timeLimit;
+            this.label = label;
+        }
+
+        @Override
+        protected void callback() {
+            try {
+                if (finished) return;
+                if (where != GRB.CB_MIP && where != GRB.CB_MIPSOL && where != GRB.CB_MIPNODE) {
+                    return;
+                }
+
+                long now = System.nanoTime();
+                if (now - lastUpdateNs < UPDATE_INTERVAL_NS) return;
+                lastUpdateNs = now;
+
+                double runtime = getDoubleInfo(GRB.CB_RUNTIME);
+                double objBst  = getDoubleInfo(GRB.CB_MIP_OBJBST);
+                double objBnd  = getDoubleInfo(GRB.CB_MIP_OBJBND);
+                double nodes   = getDoubleInfo(GRB.CB_MIP_NODCNT);
+
+                renderBar(runtime, objBst, objBnd, (long) nodes);
+                printedAtLeastOnce = true;
+            } catch (GRBException e) {
+                // Swallow — callback errors must not abort optimization
+            }
+        }
+
+        private void renderBar(double runtime, double objBst, double objBnd, long nodes) {
+            boolean haveBest  = Math.abs(objBst) < 1e30;
+            boolean haveBound = Math.abs(objBnd) < 1e30;
+
+            double timeFrac = Math.min(1.0, runtime / Math.max(timeLimit, 1e-9));
+            double gapVal   = Double.NaN;
+            double gapFrac  = 0.0;
+            if (haveBest && haveBound && Math.abs(objBst) > 1e-10) {
+                gapVal  = Math.abs(objBnd - objBst) / Math.abs(objBst);
+                gapFrac = Math.max(0.0, Math.min(1.0, 1.0 - gapVal));
+            }
+            double frac = Math.max(timeFrac, gapFrac);
+
+            int barWidth = 28;
+            int filled = (int) Math.round(frac * barWidth);
+            if (filled > barWidth) filled = barWidth;
+            if (filled < 0) filled = 0;
+            String bar = "[" + "#".repeat(filled) + ".".repeat(barWidth - filled) + "]";
+
+            String objStr = haveBest  ? String.format("%,10.0f", objBst) : "      --  ";
+            String bndStr = haveBound ? String.format("%,10.0f", objBnd) : "      --  ";
+            String gapStr = Double.isNaN(gapVal) ? "   -- " : String.format("%5.1f%%", gapVal * 100);
+
+            String line = String.format(
+                "  %s %s %5.1f%% | t=%6.1fs/%5.1fs | obj=%s bnd=%s gap=%s | nodes=%,d",
+                label, bar, frac * 100.0, runtime, timeLimit, objStr, bndStr, gapStr, nodes);
+            // \r overwrites the current line; trailing spaces clear leftovers from longer prior lines.
+            System.out.print("\r" + line + "    ");
+            System.out.flush();
+        }
+
+        /** Print a trailing newline so subsequent output starts on a fresh line. */
+        void finish() {
+            if (finished) return;
+            finished = true;
+            if (printedAtLeastOnce) System.out.println();
+        }
+    }
+
     public static void main(String[] args) throws IOException {
         readArgs(args);
 
         loadCSVData(fileName);
         System.out.printf("Loaded %,d towns from %s%n", rawN, fileName);
         System.out.printf(
-                "Runs: %d | Budget: %.2f | Seed: %d | ILP candidate limit: %d%n%n",
-                TOTAL_RUNS, budget, baseSeed, ILP_CANDIDATE_LIMIT);
+                "Runs: %d | Budget: %.2f | Seed: %d | ILP candidate limit: %s%n%n",
+                TOTAL_RUNS, budget, baseSeed,
+                (ILP_CANDIDATE_LIMIT == Integer.MAX_VALUE ? "unlimited (all feasible)" : String.valueOf(ILP_CANDIDATE_LIMIT)));
 
         int[][] runPairs = chooseRunPairs(TOTAL_RUNS, budget, baseSeed);
         AlgoResult[][] results = new AlgoResult[TOTAL_RUNS][4];
@@ -130,6 +256,9 @@ public class Main {
                     " RUN %2d / %d | Start: %-10s End: %-10s Direct: %.2f%n" +
                     "============================================================%n",
                     run, TOTAL_RUNS, begin, end, rawDistance(si, ei));
+
+            buildCityList();
+            initGraph();
 
             results[run - 1][0] = runGreedyPrize();
             printRunResult(results[run - 1][0]);
@@ -172,8 +301,10 @@ public class Main {
         if (budget <= 0) {
             throw new IllegalArgumentException("budget must be positive");
         }
-        if (ILP_CANDIDATE_LIMIT < 0 || ILP_CANDIDATE_LIMIT > 18) {
-            throw new IllegalArgumentException("ilpCandidateLimit must be between 0 and 18");
+        if (ILP_CANDIDATE_LIMIT < 0) {
+            throw new IllegalArgumentException(
+                "ilpCandidateLimit must be >= 0  (0 = skip ILP, omit arg or pass " +
+                Integer.MAX_VALUE + " = all feasible towns)");
         }
     }
 
@@ -355,6 +486,8 @@ public class Main {
 
     static void initStatics() {
         statesCt = sGraph.n();
+        Q = null;
+        R = null;
         Q = new double[statesCt][statesCt];
         R = new double[statesCt][statesCt];
 
@@ -576,8 +709,7 @@ public class Main {
     }
 
     static AlgoResult runGreedyPrize() {
-        buildCityList();
-        initGraph();
+        resetTraversal();
 
         long t0 = System.currentTimeMillis();
         traverseP();
@@ -587,19 +719,18 @@ public class Main {
     }
 
     static AlgoResult runGreedyRatio() {
-        buildCityList();
-        initGraph();
+        resetTraversal();
 
         long t0 = System.currentTimeMillis();
         traverseR();
         long ms = System.currentTimeMillis() - t0;
 
+        greedyRatioRoute = new ArrayList<>(route); // save for ILP warm start
         return captureResult("Greedy ratio", ms, "highest reward/distance first");
     }
 
     static AlgoResult runPMARL() {
-        buildCityList();
-        initGraph();
+        resetTraversal();
         initStatics();
 
         prizeMax = Integer.MIN_VALUE;
@@ -615,8 +746,7 @@ public class Main {
     }
 
     static AlgoResult runIlpExactSubset() {
-        buildCityList();
-        initGraph();
+        resetTraversal();
 
         long t0 = System.currentTimeMillis();
         AlgoResult result = solveExactSubsetBaseline(ILP_CANDIDATE_LIMIT);
@@ -741,7 +871,6 @@ public class Main {
 
     static AlgoResult solveExactSubsetBaseline(int candidateLimit) {
         ArrayList<Integer> candidates = chooseIlpCandidates(candidateLimit);
-        int k = candidates.size();
         int feasibleCount = countFeasibleIntermediateNodes();
         int startNode = 0;
         int finishNode = sGraph.getLastNode();
@@ -755,112 +884,255 @@ public class Main {
         total_prize = prizeForRoute(route);
         remainingBudget = budget - total_wt;
 
+        // Safety cap removed: when candidateLimit == Integer.MAX_VALUE we now
+        // hand ALL feasible intermediate towns to Gurobi.  Expect large MIPs
+        // and frequent TimeLimit hits on big instances; raise
+        // GUROBI_TIME_LIMIT_S if you need more time per run.
+        if (candidateLimit == Integer.MAX_VALUE && candidates.size() > 0) {
+            System.out.printf(
+                "  [Gurobi ILP] Handing %d feasible towns to Gurobi (no trimming).%n",
+                candidates.size());
+        }
+
+        int k = candidates.size();
         if (k == 0) {
             String note = (candidateLimit == 0)
                     ? "candidate limit is 0"
                     : "no feasible intermediate candidates";
-            return captureResult("ILP/exact", 0, note);
+            return captureResult("Gurobi ILP", 0, note);
         }
 
-        int maskCount = 1 << k;
-        double inf = Double.POSITIVE_INFINITY;
-        double[][] dp = new double[maskCount][k];
-        int[][] parent = new int[maskCount][k];
-        for (int mask = 0; mask < maskCount; mask++) {
-            Arrays.fill(dp[mask], inf);
-            Arrays.fill(parent[mask], -2);
+        int m = k + 2;
+        int start = 0;
+        int finish = m - 1;
+        int[] localToGraph = new int[m];
+        localToGraph[start] = startNode;
+        for (int i = 0; i < k; i++) {
+            localToGraph[i + 1] = candidates.get(i);
         }
+        localToGraph[finish] = finishNode;
 
-        int[] rewardSum = new int[maskCount];
-        for (int mask = 1; mask < maskCount; mask++) {
-            int bit = Integer.numberOfTrailingZeros(mask);
-            int previousMask = mask & ~(1 << bit);
-            rewardSum[mask] = rewardSum[previousMask] + sGraph.getPrize(candidates.get(bit));
-        }
+        GRBModel model = null;
+        GurobiProgressCallback progressCb = null;
+        try {
+            GRBEnv env = getGurobiEnv();
+            model = new GRBModel(env);
+            model.set(GRB.DoubleParam.TimeLimit, GUROBI_TIME_LIMIT_S);
 
-        for (int j = 0; j < k; j++) {
-            int node = candidates.get(j);
-            int mask = 1 << j;
-            dp[mask][j] = sGraph.shortestPath(startNode, node);
-            parent[mask][j] = -1;
-        }
+            // Live progress bar — overprints a single line during optimize().
+            progressCb = new GurobiProgressCallback(GUROBI_TIME_LIMIT_S, "[Gurobi]");
+            model.setCallback(progressCb);
 
-        int bestMask = 0;
-        int bestLast = -1;
-        int bestReward = total_prize;
-        double bestDistance = total_wt;
-
-        for (int mask = 1; mask < maskCount; mask++) {
-            for (int last = 0; last < k; last++) {
-                if ((mask & (1 << last)) == 0 || Double.isInfinite(dp[mask][last])) {
-                    continue;
-                }
-
-                int lastNode = candidates.get(last);
-                double finishDistance = dp[mask][last] + sGraph.shortestPath(lastNode, finishNode);
-                int reward = sGraph.getPrize(startNode) + sGraph.getPrize(finishNode) + rewardSum[mask];
-                if (finishDistance <= budget &&
-                        (reward > bestReward || (reward == bestReward && finishDistance < bestDistance))) {
-                    bestReward = reward;
-                    bestDistance = finishDistance;
-                    bestMask = mask;
-                    bestLast = last;
-                }
-
-                int remaining = (~mask) & (maskCount - 1);
-                while (remaining != 0) {
-                    int bit = Integer.numberOfTrailingZeros(remaining);
-                    remaining &= ~(1 << bit);
-                    int nextNode = candidates.get(bit);
-                    int nextMask = mask | (1 << bit);
-                    double newDistance = dp[mask][last] + sGraph.shortestPath(lastNode, nextNode);
-                    if (newDistance + sGraph.shortestPath(nextNode, finishNode) > budget) {
-                        continue;
-                    }
-                    if (newDistance < dp[nextMask][bit]) {
-                        dp[nextMask][bit] = newDistance;
-                        parent[nextMask][bit] = last;
+            // x[i][j] = 1 if arc (i,j) is used. Skip i==j, arcs into start, arcs out of finish.
+            GRBVar[][] x = new GRBVar[m][m];
+            for (int i = 0; i < m; i++) {
+                for (int j = 0; j < m; j++) {
+                    if (i != j && i != finish && j != start) {
+                        x[i][j] = model.addVar(0.0, 1.0, 0.0, GRB.BINARY, "x_" + i + "_" + j);
                     }
                 }
             }
-        }
 
-        ArrayList<Integer> bestRoute = reconstructExactSubsetRoute(candidates, parent, bestMask, bestLast);
-        total_wt = bestDistance;
-        route = bestRoute;
-        total_prize = prizeForRoute(route);
-        remainingBudget = budget - total_wt;
+            // y[i] = 1 if town i is visited. Start and finish are pinned to 1.
+            GRBVar[] y = new GRBVar[m];
+            y[start]  = model.addVar(1.0, 1.0, 0.0, GRB.INTEGER, "y_start");
+            y[finish] = model.addVar(1.0, 1.0, 0.0, GRB.INTEGER, "y_finish");
+            for (int i = 1; i < finish; i++) {
+                y[i] = model.addVar(0.0, 1.0, 0.0, GRB.BINARY, "y_" + i);
+            }
 
-        String note = "exact over " + k + " selected candidates";
-        if (k < feasibleCount) {
-            note += " of " + feasibleCount + " feasible towns";
+            // MTZ order variables remove subtours and force a single start-to-finish path.
+            GRBVar[] order = new GRBVar[m];
+            order[start] = model.addVar(0.0, 0.0, 0.0, GRB.CONTINUOUS, "u_start");
+            for (int i = 1; i < m; i++) {
+                order[i] = model.addVar(1.0, m - 1, 0.0, GRB.CONTINUOUS, "u_" + i);
+            }
+
+            // Start has exactly one outgoing arc.
+            GRBLinExpr startOut = new GRBLinExpr();
+            for (int j = 1; j < m; j++) {
+                if (x[start][j] != null) startOut.addTerm(1.0, x[start][j]);
+            }
+            model.addConstr(startOut, GRB.EQUAL, 1.0, "start_out");
+
+            // Finish has exactly one incoming arc.
+            GRBLinExpr finishIn = new GRBLinExpr();
+            for (int i = 0; i < finish; i++) {
+                if (x[i][finish] != null) finishIn.addTerm(1.0, x[i][finish]);
+            }
+            model.addConstr(finishIn, GRB.EQUAL, 1.0, "finish_in");
+
+            // Each selected intermediate town has exactly one incoming and one outgoing arc.
+            for (int v = 1; v < finish; v++) {
+                GRBLinExpr in = new GRBLinExpr();
+                for (int i = 0; i < m; i++) {
+                    if (x[i][v] != null) in.addTerm(1.0, x[i][v]);
+                }
+                in.addTerm(-1.0, y[v]);
+                model.addConstr(in, GRB.EQUAL, 0.0, "flow_in_" + v);
+
+                GRBLinExpr out = new GRBLinExpr();
+                for (int j = 0; j < m; j++) {
+                    if (x[v][j] != null) out.addTerm(1.0, x[v][j]);
+                }
+                out.addTerm(-1.0, y[v]);
+                model.addConstr(out, GRB.EQUAL, 0.0, "flow_out_" + v);
+            }
+
+            // Total path distance must fit inside the budget.
+            GRBLinExpr budgetExpr = new GRBLinExpr();
+            for (int i = 0; i < m; i++) {
+                for (int j = 0; j < m; j++) {
+                    if (x[i][j] != null) {
+                        double d = sGraph.shortestPath(localToGraph[i], localToGraph[j]);
+                        budgetExpr.addTerm(d, x[i][j]);
+                    }
+                }
+            }
+            model.addConstr(budgetExpr, GRB.LESS_EQUAL, budget, "budget");
+
+            // MTZ subtour elimination:
+            //   order[i] - order[j] + bigM * x[i][j] <= bigM - 1
+            int bigM = m;
+            for (int i = 0; i < m; i++) {
+                for (int j = 1; j < m; j++) {
+                    if (i == j || x[i][j] == null) continue;
+                    GRBLinExpr mtz = new GRBLinExpr();
+                    mtz.addTerm( 1.0, order[i]);
+                    mtz.addTerm(-1.0, order[j]);
+                    mtz.addTerm((double) bigM, x[i][j]);
+                    model.addConstr(mtz, GRB.LESS_EQUAL, (double) (bigM - 1),
+                            "mtz_" + i + "_" + j);
+                }
+            }
+
+            // Objective: maximize total prize collected over all visited towns.
+            GRBLinExpr obj = new GRBLinExpr();
+            obj.addTerm(sGraph.getPrize(startNode),  y[start]);
+            obj.addTerm(sGraph.getPrize(finishNode), y[finish]);
+            for (int i = 1; i < finish; i++) {
+                obj.addTerm(sGraph.getPrize(localToGraph[i]), y[i]);
+            }
+            model.setObjective(obj, GRB.MAXIMIZE);
+
+            // MIP warm start: seed Gurobi with the greedy-ratio path filtered to
+            // candidate nodes. Skips nodes not in the candidate set while preserving
+            // relative order, which is always budget-feasible by triangle inequality.
+            if (greedyRatioRoute != null) {
+                Map<Integer, Integer> g2l = new HashMap<>();
+                for (int i = 0; i < m; i++) g2l.put(localToGraph[i], i);
+
+                List<Integer> warmLocal = new ArrayList<>();
+                warmLocal.add(start);
+                for (int gNode : greedyRatioRoute) {
+                    if (gNode == localToGraph[start] || gNode == localToGraph[finish]) continue;
+                    Integer li = g2l.get(gNode);
+                    if (li != null) warmLocal.add(li);
+                }
+                warmLocal.add(finish);
+
+                for (int i = 0; i < m; i++)
+                    for (int j = 0; j < m; j++)
+                        if (x[i][j] != null) x[i][j].set(GRB.DoubleAttr.Start, 0.0);
+                for (int i = 0; i < warmLocal.size() - 1; i++) {
+                    int a = warmLocal.get(i), b = warmLocal.get(i + 1);
+                    if (a != b && x[a][b] != null) x[a][b].set(GRB.DoubleAttr.Start, 1.0);
+                }
+                Set<Integer> inWarm = new HashSet<>(warmLocal);
+                for (int i = 1; i < finish; i++)
+                    y[i].set(GRB.DoubleAttr.Start, inWarm.contains(i) ? 1.0 : 0.0);
+            }
+
+            model.optimize();
+
+            int status = model.get(GRB.IntAttr.Status);
+            boolean optimal  = status == GRB.Status.OPTIMAL;
+            boolean feasible = optimal || model.get(GRB.IntAttr.SolCount) > 0;
+
+            if (!feasible) {
+                return captureResult("Gurobi ILP", 0,
+                        "solver status " + status + "; using direct start->finish path");
+            }
+
+            ArrayList<Integer> bestRoute = reconstructGurobiRoute(x, localToGraph, start, finish);
+            double bestDistance = routeDistance(bestRoute);
+
+            total_wt = bestDistance;
+            route = bestRoute;
+            total_prize = prizeForRoute(route);
+            remainingBudget = budget - total_wt;
+
+            String optimality = optimal ? "OPTIMAL" : "FEASIBLE";
+            String scope = (k == feasibleCount)
+                    ? "all " + k + " feasible towns"
+                    : k + " selected candidates of " + feasibleCount + " feasible";
+            return captureResult("Gurobi ILP", 0, optimality + " over " + scope);
+        } catch (GRBException ex) {
+            throw new RuntimeException(
+                    "Gurobi error " + ex.getErrorCode() + ": " + ex.getMessage(), ex);
+        } finally {
+            if (progressCb != null) progressCb.finish();
+            if (model != null) model.dispose();
         }
-        return captureResult("ILP/exact", 0, note);
     }
 
-    static ArrayList<Integer> reconstructExactSubsetRoute(ArrayList<Integer> candidates, int[][] parent,
-                                                           int mask, int last) {
-        ArrayList<Integer> order = new ArrayList<>();
-        if (last >= 0) {
-            int curMask = mask;
-            int curLast = last;
-            while (curLast >= 0) {
-                order.add(candidates.get(curLast));
-                int prev = parent[curMask][curLast];
-                curMask &= ~(1 << curLast);
-                curLast = prev;
+    static ArrayList<Integer> reconstructGurobiRoute(GRBVar[][] x, int[] localToGraph,
+                                                     int start, int finish) throws GRBException {
+        ArrayList<Integer> bestRoute = new ArrayList<>();
+        boolean[] usedLocal = new boolean[localToGraph.length];
+        int cur = start;
+        bestRoute.add(localToGraph[cur]);
+        usedLocal[cur] = true;
+
+        while (cur != finish) {
+            int next = -1;
+            for (int j = 0; j < localToGraph.length; j++) {
+                if (x[cur][j] != null && x[cur][j].get(GRB.DoubleAttr.X) > 0.5) {
+                    next = j;
+                    break;
+                }
             }
-            Collections.reverse(order);
+            if (next < 0 || usedLocal[next]) {
+                break;
+            }
+            bestRoute.add(localToGraph[next]);
+            usedLocal[next] = true;
+            cur = next;
         }
 
-        ArrayList<Integer> bestRoute = new ArrayList<>();
-        bestRoute.add(0);
-        bestRoute.addAll(order);
-        int finish = sGraph.getLastNode();
-        if (bestRoute.get(bestRoute.size() - 1) != finish) {
-            bestRoute.add(finish);
+        if (bestRoute.get(bestRoute.size() - 1) != localToGraph[finish]) {
+            bestRoute.add(localToGraph[finish]);
         }
         return bestRoute;
+    }
+
+    static double routeDistance(ArrayList<Integer> path) {
+        double d = 0.0;
+        for (int i = 0; i < path.size() - 1; i++) {
+            d += sGraph.shortestPath(path.get(i), path.get(i + 1));
+        }
+        return d;
+    }
+
+    /**
+     * Trims a candidate list to the top-{@code limit} nodes using the same
+     * prize/ratio ranking used by chooseIlpCandidates.  Called only when the
+     * full feasible set exceeds MAX_BITMASK_K.
+     */
+    static ArrayList<Integer> trimCandidates(ArrayList<Integer> candidates, int limit) {
+        if (candidates.size() <= limit) return candidates;
+
+        ArrayList<Integer> byPrize = new ArrayList<>(candidates);
+        byPrize.sort(Comparator.comparingInt((Integer o) -> sGraph.getPrize(o)).reversed());
+
+        ArrayList<Integer> byRatio = new ArrayList<>(candidates);
+        byRatio.sort((a, b) -> Double.compare(candidateRatioScore(b), candidateRatioScore(a)));
+
+        LinkedHashSet<Integer> selected = new LinkedHashSet<>();
+        int prizeQuota = Math.max(1, limit / 2);
+        addTopCandidates(selected, byPrize, prizeQuota);
+        addTopCandidates(selected, byRatio, limit);
+        return new ArrayList<>(selected);
     }
 
     static ArrayList<Integer> chooseIlpCandidates(int limit) {
@@ -872,23 +1144,41 @@ public class Main {
             }
         }
 
-        if (limit == 0) {
-            return new ArrayList<>();
-        }
-        if (feasible.size() <= limit) {
-            return feasible;
+        if (limit == 0) return new ArrayList<>();
+        if (feasible.size() <= limit) return feasible;
+
+        // Greedy path simulation: pick candidates sequentially by prize/distance
+        // from the current position (mirrors traverseR). This selects geographically
+        // clustered towns that can be visited together, not isolated high-value towns
+        // that would require expensive detours between them.
+        LinkedHashSet<Integer> selected = new LinkedHashSet<>();
+        boolean[] used = new boolean[sGraph.n()];
+        double spent = 0.0;
+        int cur = 0;
+
+        while (selected.size() < limit) {
+            double rem = budget - spent;
+            int best = -1;
+            double bestScore = Double.NEGATIVE_INFINITY;
+            for (int node : feasible) {
+                if (used[node]) continue;
+                double toNode = sGraph.shortestPath(cur, node);
+                double toEnd  = sGraph.shortestPath(node, finish);
+                if (toNode + toEnd > rem) continue;
+                double score = sGraph.getPrize(node) / Math.max(1.0, toNode);
+                if (score > bestScore) { bestScore = score; best = node; }
+            }
+            if (best < 0) break;
+            selected.add(best);
+            used[best] = true;
+            spent += sGraph.shortestPath(cur, best);
+            cur = best;
         }
 
+        // Fill remaining slots with highest-prize feasible nodes not yet chosen.
         ArrayList<Integer> byPrize = new ArrayList<>(feasible);
         byPrize.sort(Comparator.comparingInt((Integer o) -> sGraph.getPrize(o)).reversed());
-
-        ArrayList<Integer> byRatio = new ArrayList<>(feasible);
-        byRatio.sort((a, b) -> Double.compare(candidateRatioScore(b), candidateRatioScore(a)));
-
-        LinkedHashSet<Integer> selected = new LinkedHashSet<>();
-        int prizeQuota = Math.max(1, limit / 2);
-        addTopCandidates(selected, byPrize, prizeQuota);
-        addTopCandidates(selected, byRatio, limit);
+        addTopCandidates(selected, byPrize, limit);
 
         return new ArrayList<>(selected);
     }

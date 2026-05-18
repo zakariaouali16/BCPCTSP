@@ -4,3 +4,4 @@ pmarl\Graph.class
 pmarl\CityNode.class
 pmarl\Main.class
 pmarl\Agent.class
+pmarl\Main$GurobiProgressCallback.class
